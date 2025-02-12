@@ -1,8 +1,10 @@
-# Fastapi Large Application Template
+# FastAPI Large Application Template 🚀
+
+A production-ready template for building scalable FastAPI applications with modular architecture and essential integrations.
 
 ---
 
-## Contents
+## Project Structure 🌳
 
 <!-- TREE_START -->
 ```
@@ -36,3 +38,45 @@
 <!-- TREE_END -->
 
 ---
+
+## Features
+
+- JWT-based authentication system
+- Modular architecture with separation of concerns
+- PostgreSQL database integration
+- Health check endpoint
+- Docker containerization support
+- Environment configuration management
+- Production-ready server configuration
+
+## Technologies
+
+- Python 3.9+
+- FastAPI
+- SQLAlchemy (ORM)
+- PostgreSQL
+- Docker
+- Gunicorn + Uvicorn
+
+## Getting Started
+
+### Prerequisites
+
+- Python 3.9+
+- PostgreSQL database
+- Docker (optional)
+
+## API Documentation
+
+Interactive documentation is available at `/docs` endpoint after starting the server:
+- Swagger UI: `http://localhost:8000/docs`
+- Redoc: `http://localhost:8000/redoc`
+- OpenAPI schema: `http://localhost:8000/openapi.json`
+
+## Contributing
+
+See [CONTRIBUTORS.txt](CONTRIBUTORS.txt) for contribution guidelines and code of conduct.
+
+## License
+
+This project is licensed under the MIT License - see [LICENSE](LICENSE) for details.
