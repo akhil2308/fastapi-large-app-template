@@ -23,6 +23,7 @@ A production-ready template for building scalable FastAPI applications with modu
 │   └── settings.py
 ├── CONTRIBUTORS.txt
 ├── Dockerfile
+├── LICENSE
 ├── README.md
 ├── gunicorn_conf.py
 ├── main.py
@@ -31,7 +32,7 @@ A production-ready template for building scalable FastAPI applications with modu
 ├── set_env.sh
 └── tree.txt
 
-5 directories, 19 files
+5 directories, 20 files
 ```
 <!-- TREE_END -->
 
