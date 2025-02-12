@@ -1,0 +1,65 @@
+# .gitignore for FastAPI projects
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.py,cover
+.env
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+pythonenv*
+
+# Dependencies
+lib/
+lib64/
+site-packages/
+.python-version
+poetry.lock  # Only ignore if you're not using Poetry
+
+# IDE/Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-workspace
+*.sublime-project
+
+# Logs and databases
+*.log
+logs/
+*.sqlite
+*.db
+*.db-journal
+
+# Local development
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Build and distribution
+dist/
+build/
+*.egg-info/
+*.egg
+*.manifest
+*.spec
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+test.db
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# OS-specific
+.DS_Store
+Thumbs.db
