@@ -2,8 +2,6 @@
 
 A production-ready template for building scalable FastAPI applications with modular architecture and essential integrations.
 
----
-
 ## Project Structure 🌳
 
 <!-- TREE_START -->
@@ -37,7 +35,6 @@ A production-ready template for building scalable FastAPI applications with modu
 ```
 <!-- TREE_END -->
 
----
 
 ## Features
 
