@@ -1,0 +1,39 @@
+name: Update README Tree
+
+on:
+  push:
+    branches:
+      - main  # Trigger on pushes to the main branch
+
+jobs:
+  update-readme:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true  # Required for pushing changes
+
+      - name: Generate directory tree
+        run: |
+          # Install the 'tree' command (if not already available)
+          sudo apt-get update && sudo apt-get install -y tree
+          # Generate the tree structure and save it to a file
+          tree -I 'node_modules|.git|.github|venv|__pycache__' --dirsfirst -L 3 > tree.txt
+
+      - name: Update README.md
+        run: |
+          # Use awk to replace the placeholder in README.md with the tree content
+          awk -v tree="$(cat tree.txt)" '
+            /<!-- TREE_START -->/ { print; print "```\n" tree "\n```"; flag=1; next }
+            /<!-- TREE_END -->/ { flag=0 }
+            !flag { print }
+          ' README.md > tmp && mv tmp README.md
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add README.md
+          git commit -m "Update directory tree in README"
+          git push
