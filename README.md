@@ -27,7 +27,7 @@ A production-ready FastAPI template designed for building secure, scalable APIs 
 | ORM                    | SQLAlchemy 2.0                      |
 | Authentication         | JWT (OAuth2 Password Bearer)        |
 | Rate Limiting          | Redis-backed Custom Implementation  |
-| Containerization       | Docker + Docker Compose             |
+| Containerization       | Docker                              |
 
 ## Project Structure 🌳
 
