@@ -4,7 +4,7 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
 
-A production-ready template for building scalable FastAPI applications with modular architecture and essential integrations.
+A production-ready FastAPI template designed for building secure, scalable APIs with modern best practices baked in. This template provides a robust foundation for enterprise-grade applications, featuring essential security measures, performance optimizations, and maintainable architecture patterns out of the box.
 
 ## Features ✨
 
