@@ -11,28 +11,52 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-
-@router.post("/register", response_model=UserCreateResponse)
-def register(request: UserCreateRequest, db: Session = Depends(get_db)):
-    user = register_user(db, request)
-    if not user:
+@router.post("/register")
+def register(body: UserCreateRequest, db: Session = Depends(get_db)):
+    try:
+        user = register_user(db, body)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username or email already exists"
+            )
+        data = UserCreateResponse(user) 
+        return {
+            "status": "success",
+            "message": "User registered successfully",
+            "data":data.model_dump()
+        }
+    except HTTPException as e:
+        raise 
+    except Exception as e:
+        logger.error(f"Error registering user: {e}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username or email already exists"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error registering user"
         )
-    return user
 
 @router.post("/login")
-def login(request: UserLoginRequest, db: Session = Depends(get_db)):
-    user = login_user(db, request.username, request.password)
-    if not user:
+def login(body: UserLoginRequest, db: Session = Depends(get_db)):
+    try:
+        user = login_user(db, body.username, body.password)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid credentials"
+            )
+        access_token = create_access_token(data={"sub": user.user_id})
+        
+        return {
+            "status": "success",
+            "message": "Login successful",
+            "data":{ 
+                "access_token": access_token, 
+                "token_type": "bearer"
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error logging in user: {e}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error logging in user"
         )
-    access_token = create_access_token(data={"sub": user.username, "user_id": user.user_id})
-    
-    return {
-        "access_token": access_token, 
-        "token_type": "bearer"
-    }
