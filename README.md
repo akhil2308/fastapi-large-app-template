@@ -72,6 +72,7 @@ A production-ready template for building scalable FastAPI applications with modu
 7 directories, 28 files
 ```
 <!-- TREE_END -->
+---
 
 ## Key Implementations 🔑
 
