@@ -11,8 +11,8 @@ A production-ready FastAPI template designed for building secure, scalable APIs 
 - **JWT Authentication** with refresh tokens 🔒
 - **Custom Rate Limiting** per user/service ⏱️
 - **Unified Logging** (UVICORN + GUNICORN) 📝
-- **Redis Connection Pooling** with fail-open strategy 🧠
-- **PostgreSQL Connection Pooling** with health checks 🐘
+- **Redis Connection Pooling** (Async) with fail-open strategy 🧠
+- **PostgreSQL Connection Pooling** (Async) with health checks 🐘
 - **Standardized API Responses** 📦
 - **Production-Ready Error Handling** 🛡️
 - **Docker** + **Gunicorn** + **Uvicorn** Stack 🐳⚡
@@ -78,19 +78,36 @@ A production-ready FastAPI template designed for building secure, scalable APIs 
 
 ### Database Pooling Configuration
 
-**PostgreSQL (SQLAlchemy + psycopg2):**
+**PostgreSQL (SQLAlchemy 2.0 + asyncpg):** 
 ```python
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    pool_size=20,          # Maximum 20 persistent connections
-    max_overflow=10,       # Allow 10 temporary overflow connections
-    pool_recycle=300,      # Recycle connections after 5 minutes
-    pool_pre_ping=True     # Validate connections before use
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+
+# Async PostgreSQL connection pool
+engine = create_async_engine(
+    "postgresql+asyncpg://user:pass@host:port/dbname",
+    pool_size=20,          # Persistent connection pool size
+    max_overflow=10,       # Temporary connections beyond pool_size
+    pool_recycle=300,      # Recycle connections every 300s
+    pool_pre_ping=True,    # Validate connections before use
+    future=True            # Enable SQLAlchemy 2.0 behavior
+)
+
+# Async session factory configuration
+AsyncSessionLocal = async_sessionmaker(
+    bind=engine,
+    expire_on_commit=False,  # Prevent attribute expiration on commit
+    autoflush=False,         # Manual flush control
+    class_=AsyncSession      # Use SQLAlchemy's async session class
 )
 ```
-- **Pool Size:** Optimized for moderate concurrency
-- **Connection Recycling:** Prevents stale connections
-- **Pre-ping:** Ensures connection validity
+
+**Key Features**:
+- 🚀 **Full Async Support**: Non-blocking database operations via asyncpg
+- 🔄 **Connection Recycling**: Prevents stale connections in long-running applications
+- 🩺 **Connection Validation**: Pre-ping checks verify connection health
+- 📈 **Optimized Pooling**: Balances memory usage and concurrent requests
+- ⚡ **SQLAlchemy 2.0**: Future-proof API with explicit transaction control
+
 
 **Redis Connection Pool:**
 ```python
@@ -119,7 +136,7 @@ redis = await Redis(
 async def create_todo(
     body: TodoCreate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Implements:
@@ -133,7 +150,7 @@ async def create_todo(
         await user_rate_limiter(current_user.user_id, "todo_write")
         
         # Business logic
-        data = create_todo_service(current_user.user_id, body, db)
+        data = await create_todo_service(current_user.user_id, body, db)
         
         # Standardized success response
         return {
