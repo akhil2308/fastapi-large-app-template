@@ -5,7 +5,6 @@ from datetime import datetime
 class TodoCreate(BaseModel):
     title: str
     description: Optional[str] = None
-    completed: bool = False
 
 class TodoUpdate(BaseModel):
     title: str

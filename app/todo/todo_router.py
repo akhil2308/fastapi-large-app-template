@@ -22,7 +22,7 @@ async def create_todo(
     ):
     try:
         await user_rate_limiter(current_user.user_id, SERVICE, READ_RATE_LIMITING_PER_MIN)
-        data = create_todo_service(current_user.user_id, body, db)
+        data = await create_todo_service(current_user.user_id, body, db)
         return {
             "status": "success",
             "message": "Todo created successfully",
@@ -46,7 +46,7 @@ async def get_todos(
     ):
     try:
         await user_rate_limiter(current_user.user_id, SERVICE, WRITE_RATE_LIMITING_PER_MIN)
-        data = get_todos_serivce(current_user.user_id, page_number, page_size, db)
+        data = await get_todos_serivce(current_user.user_id, page_number, page_size, db)
         return {
             "status": "success",
             "message": "Todos retrieved successfully",

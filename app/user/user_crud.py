@@ -1,18 +1,23 @@
 import uuid
-from sqlalchemy import or_
-from sqlalchemy.orm import Session
+from sqlalchemy import or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.user.user_model import User
 
-def get_user_by_username(db: Session, username: str):
-    return db.query(User).filter(User.username == username).first()
+async def get_user_by_username(db: AsyncSession, username: str):
+    return (await db.scalars(select(User).where(User.username == username))).first()
 
-def get_user_by_username_or_email(db: Session, username: str = None, email: str = None):
-    return db.query(User).filter(or_(User.username == username, User.email == email)).first()
+async def get_user_by_username_or_email(db: AsyncSession, username: str = None, email: str = None):
+    result = await db.execute(
+        select(User).where(or_(User.username == username, User.email == email)))
+    return result.scalars().first()
 
-def get_user_by_user_id(db: Session, user_id: str):
-    return db.query(User).filter(User.user_id == user_id).first()
+async def get_user_by_user_id(db: AsyncSession, user_id: str):
+    result = await db.execute(
+        select(User).where(User.user_id == user_id))
+    return result.scalars().first()
 
-def create_user(db: Session, username: str, email: str, hashed_password: str):
+
+async def create_user(db: AsyncSession, username: str, email: str, hashed_password: str):
     user = User(
         user_id=str(uuid.uuid4()),
         username=username,
@@ -20,6 +25,6 @@ def create_user(db: Session, username: str, email: str, hashed_password: str):
         hashed_password=hashed_password
     )
     db.add(user)
-    db.commit()
-    db.refresh(user)
+    await db.commit()
+    await db.refresh(user)
     return user

@@ -20,8 +20,11 @@ logging.config.dictConfig(logging_config)
 from app.user import user_model
 from app.todo import todo_model
 
-todo_model.Base.metadata.create_all(bind=engine) 
-user_model.Base.metadata.create_all(bind=engine)
+async def create_tables(engine):
+    """Async table creation entrypoint"""
+    async with engine.begin() as conn:
+        await conn.run_sync(todo_model.Base.metadata.create_all)
+        await conn.run_sync(user_model.Base.metadata.create_all)
 
 
 app = FastAPI(
@@ -34,6 +37,9 @@ app = FastAPI(
 
 @app.on_event("startup")
 async def startup():
+    # Create tables in the database (only locally, Comment for production)
+    await create_tables(engine)
+    
     # Create Redis connection pool
     redis = await Redis(
         host=REDIS_HOST,
