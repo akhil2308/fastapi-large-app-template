@@ -9,7 +9,7 @@ class Todo(Base):
     user_id     = Column(String, nullable=False)
     title       = Column(String, nullable=False)
     description = Column(Text, nullable=True)
-    completed   = Column(String, default=False)
+    completed   = Column(Boolean, default=False)
     created_at  = Column(DateTime, default=datetime.utcnow)
     updated_at  = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     deleted_at  = Column(DateTime, nullable=True)

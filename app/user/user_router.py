@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.user.user_schema import UserCreateRequest, UserLoginRequest, UserCreateResponse
@@ -12,19 +12,18 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 @router.post("/register")
-def register(body: UserCreateRequest, db: Session = Depends(get_db)):
+async def register(body: UserCreateRequest, db: AsyncSession = Depends(get_db)):
     try:
-        user = register_user(db, body)
+        user = await register_user(db, body)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Username or email already exists"
             )
-        data = UserCreateResponse(user) 
         return {
             "status": "success",
             "message": "User registered successfully",
-            "data":data.model_dump()
+            "data": user
         }
     except HTTPException as e:
         raise 
@@ -36,9 +35,9 @@ def register(body: UserCreateRequest, db: Session = Depends(get_db)):
         )
 
 @router.post("/login")
-def login(body: UserLoginRequest, db: Session = Depends(get_db)):
+async def login(body: UserLoginRequest, db: AsyncSession = Depends(get_db)):
     try:
-        user = login_user(db, body.username, body.password)
+        user = await login_user(db, body.username, body.password)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,

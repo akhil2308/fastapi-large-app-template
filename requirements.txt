@@ -1,10 +1,10 @@
 requests
 fastapi
 uvicorn[standard]
-SQLAlchemy
+SQLAlchemy=2.0.38
 python-decouple==3.8
 gunicorn
-psycopg2-binary
+asyncpg
 openai
 PyJWT
 bcrypt==4.0.1
