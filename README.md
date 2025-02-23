@@ -331,8 +331,8 @@ async def http_handler(request: Request, exc: HTTPException):
 ### Installation
 
 ```bash
-git clone https://github.com/yourrepo/fastapi-template.git
-cd fastapi-template
+git clone https://github.com/akhil2308/fastapi-large-app-template.git
+cd fastapi-large-app-template
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
@@ -340,12 +340,7 @@ pip install -r requirements.txt
 
 ### Configuration
 
-1. Create `.env` from template:
-```bash
-cp .env.example .env
-```
-
-2. Set environment variables:
+1. Set environment variables:
 ```bash
 source set_env.sh  # Sets DB, Redis, and JWT settings
 ```
