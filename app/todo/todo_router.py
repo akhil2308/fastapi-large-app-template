@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, status, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.utils.auth_dependency import get_current_user, User
 from app.utils.rate_limiter import user_rate_limiter
@@ -18,7 +18,7 @@ SERVICE = "todo"
 async def create_todo(
     body: TodoCreate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
     ):
     try:
         await user_rate_limiter(current_user.user_id, SERVICE, READ_RATE_LIMITING_PER_MIN)
@@ -42,7 +42,7 @@ async def get_todos(
     page_number: int = Query(1, ge=1),
     page_size: int = Query(10, gt=0),
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
     ):
     try:
         await user_rate_limiter(current_user.user_id, SERVICE, WRITE_RATE_LIMITING_PER_MIN)
