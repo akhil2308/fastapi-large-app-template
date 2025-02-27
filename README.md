@@ -323,7 +323,7 @@ async def http_handler(request: Request, exc: HTTPException):
 
 ### Prerequisites
 
-- Python 3.9+
+- Python 3.8+
 - PostgreSQL 14+
 - Redis 6+
 - Docker (optional)
