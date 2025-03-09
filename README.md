@@ -362,6 +362,7 @@ python main.py
 Access interactive docs after starting server:
 - **Swagger UI:** `http://localhost:8000/docs`
 - **ReDoc:** `http://localhost:8000/redoc`
+- **OpenAPI:** `http://localhost:8000/openapi.json`
 
 ![API Documentation Preview](docs/swagger-screenshot.png)
 
