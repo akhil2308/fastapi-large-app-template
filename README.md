@@ -58,6 +58,8 @@ A production-ready FastAPI template designed for building secure, scalable APIs 
 │   └── settings.py
 ├── docs
 │   └── swagger-screenshot.png
+├── tests
+│   └── __init__.py
 ├── CONTRIBUTORS.txt
 ├── Dockerfile
 ├── LICENSE
@@ -69,7 +71,7 @@ A production-ready FastAPI template designed for building secure, scalable APIs 
 ├── set_env.sh
 └── tree.txt
 
-7 directories, 28 files
+8 directories, 29 files
 ```
 <!-- TREE_END -->
 ---
