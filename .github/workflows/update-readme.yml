@@ -1,9 +1,10 @@
 name: Update README Tree
 
 on:
-  push:
-    branches:
-      - main  # Trigger on pushes to the main branch
+  workflow_dispatch:
+  # push:
+  #   branches:
+  #     - main  # Trigger on pushes to the main branch
 
 jobs:
   update-readme:
