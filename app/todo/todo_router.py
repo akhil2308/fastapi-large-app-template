@@ -3,8 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.utils.auth_dependency import get_current_user, User
 from app.utils.rate_limiter import user_rate_limiter
-from app.settings import READ_RATE_LIMITING_PER_MIN, WRITE_RATE_LIMITING_PER_MIN
-from app.database import get_db
+from app.core.settings import RateLimitConfig
+from app.core.database import get_db
 from app.todo.todo_schema import Todo, TodoCreate
 from app.todo.todo_service import create_todo_service, get_todos_serivce
 
@@ -21,7 +21,7 @@ async def create_todo(
     db: AsyncSession = Depends(get_db)
     ):
     try:
-        await user_rate_limiter(current_user.user_id, SERVICE, READ_RATE_LIMITING_PER_MIN)
+        await user_rate_limiter(current_user.user_id, SERVICE, RateLimitConfig.READ_PER_MIN)
         data = await create_todo_service(current_user.user_id, body, db)
         return {
             "status": "success",
@@ -45,7 +45,7 @@ async def get_todos(
     db: AsyncSession = Depends(get_db)
     ):
     try:
-        await user_rate_limiter(current_user.user_id, SERVICE, WRITE_RATE_LIMITING_PER_MIN)
+        await user_rate_limiter(current_user.user_id, SERVICE, RateLimitConfig.WRITE_PER_MIN)
         data = await get_todos_serivce(current_user.user_id, page_number, page_size, db)
         return {
             "status": "success",

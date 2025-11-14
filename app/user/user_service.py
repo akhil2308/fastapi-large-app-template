@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 
 from app.user.user_crud import create_user, get_user_by_username_or_email, get_user_by_username
-from app.user.user_schema import UserCreateRequest
+from app.user.user_schema import UserCreateRequest, UserCreateResponse
 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -28,7 +28,7 @@ async def register_user(db: Session, user_create: UserCreateRequest):
         email=user_create.email,
         hashed_password=hashed
     )
-    return UserCreateRequest.model_validate(user)
+    return UserCreateResponse.model_validate(user)
 
 
 async def login_user(db: Session, username: str, password: str):
