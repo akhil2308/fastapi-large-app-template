@@ -39,6 +39,16 @@ A production-ready FastAPI template designed for building secure, scalable APIs 
 ```
 .
 ├── app
+│   ├── alembic
+│   │   ├── versions
+│   │   ├── README
+│   │   ├── env.py
+│   │   └── script.py.mako
+│   ├── core
+│   │   ├── __init__.py
+│   │   ├── database.py
+│   │   ├── logging_config.py
+│   │   └── settings.py
 │   ├── health
 │   │   └── health_router.py
 │   ├── todo
@@ -58,8 +68,8 @@ A production-ready FastAPI template designed for building secure, scalable APIs 
 │   │   ├── auth_dependency.py
 │   │   ├── helper.py
 │   │   └── rate_limiter.py
-│   ├── database.py
-│   └── settings.py
+│   ├── alembic.ini
+│   └── main.py
 ├── docs
 │   └── swagger-screenshot.png
 ├── tests
@@ -69,14 +79,12 @@ A production-ready FastAPI template designed for building secure, scalable APIs 
 ├── Dockerfile
 ├── LICENSE
 ├── README.md
-├── gunicorn_conf.py
-├── main.py
-├── requirements.txt
+├── gunicorn_config.py
+├── pyproject.toml
 ├── run.sh
-├── set_env.sh
 └── tree.txt
 
-8 directories, 30 files
+11 directories, 35 files
 ```
 <!-- TREE_END -->
 ---
