@@ -2,5 +2,8 @@
 
 python -V
 
-# Running server
+echo "Running database migrations..."
+alembic -c app/alembic.ini upgrade head
+
+echo "Starting FastAPI server..."
 gunicorn -c gunicorn_conf.py

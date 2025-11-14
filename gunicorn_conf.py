@@ -1,12 +1,19 @@
 """Gunicorn development config file"""
 import os
 
-wsgi_app = "main:app"
+wsgi_app = "app.main:app"
+
+# Logging
 loglevel = "info"
-workers = int(os.environ.get('WORKERS', 1))
-worker_class = 'uvicorn.workers.UvicornWorker'
-bind = "0.0.0.0:8000"
-reload = False
 accesslog = "-"
 errorlog = "-"
 
+# Worker settings
+workers = int(os.getenv("WORKERS", 1))
+worker_class = "uvicorn.workers.UvicornWorker"
+
+# Bind address
+bind = "0.0.0.0:8000"
+
+# Reload only for development (disabled in production)
+reload = False
