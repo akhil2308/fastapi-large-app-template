@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Text
 from datetime import datetime
-from app.database import Base
+from app.core.database import Base
 
 class Todo(Base):
     

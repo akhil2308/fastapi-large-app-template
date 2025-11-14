@@ -1,15 +1,15 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlalchemy.orm import declarative_base
-from app.settings import *
+from app.core.settings import DBConfig
 
 # Use asyncpg driver for PostgreSQL async support
-SQLALCHEMY_DATABASE_URL = f'postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_NAME}'
+SQLALCHEMY_DATABASE_URL = DBConfig.ASYNC_URL
 
 engine = create_async_engine(
     SQLALCHEMY_DATABASE_URL,
-    pool_size=POSTGRES_POOL_SIZE,
-    max_overflow=POSTGRES_MAX_OVERFLOW,
+    pool_size=DBConfig.POOL_SIZE,
+    max_overflow=DBConfig.MAX_OVERFLOW,
     pool_recycle=300,
     pool_pre_ping=True,
     future=True  # Enable SQLAlchemy 2.0 future APIs

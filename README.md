@@ -14,6 +14,8 @@ A production-ready FastAPI template designed for building secure, scalable APIs 
 - **Redis Connection Pooling** (Async) with fail-open strategy 🧠
 - **PostgreSQL Connection Pooling** (Async) with health checks 🐘
 - **Standardized API Responses** 📦
+- **Alembic for Database Migrations** 🗄️  
+- **Modern Package Management with `uv`** ⚡
 - **Production-Ready Error Handling** 🛡️
 - **Docker** + **Gunicorn** + **Uvicorn** Stack 🐳⚡
 
@@ -25,8 +27,10 @@ A production-ready FastAPI template designed for building secure, scalable APIs 
 | Database               | PostgreSQL 14+                      |
 | Cache                  | Redis 6+                            |
 | ORM                    | SQLAlchemy 2.0                      |
+| Migrations             | Alembic                             |
 | Authentication         | JWT (OAuth2 Password Bearer)        |
 | Rate Limiting          | Redis-backed Custom Implementation  |
+| Package Manager        | `uv` (fast Python installer)        |
 | Containerization       | Docker                              |
 
 ## Project Structure 🌳
@@ -326,36 +330,68 @@ async def http_handler(request: Request, exc: HTTPException):
 
 ### Prerequisites
 
-- Python 3.8+
+- Python 3.11+
 - PostgreSQL 14+
 - Redis 6+
 - Docker (optional)
+
+---
 
 ### Installation
 
 ```bash
 git clone https://github.com/akhil2308/fastapi-large-app-template.git
 cd fastapi-large-app-template
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
+
+# Install uv (if not already installed)
+pip install uv
+
+# Install dependencies
+uv pip install .
+
+# Or if you prefer system install
+uv pip install --system .
+````
+
+---
 
 ### Configuration
 
-1. Set environment variables:
+#### Set environment variables
+
 ```bash
-source set_env.sh  # Sets DB, Redis, and JWT settings
+cp .env.example .env
+# Fill in DB, Redis, JWT, and other values
 ```
+
+---
+
+## Alembic Commands (Migrations)
+
+**Generate new migration:**
+
+```bash
+alembic -c app/alembic.ini revision --autogenerate -m "message"
+```
+
+**Apply migrations:**
+
+```bash
+alembic -c app/alembic.ini upgrade head
+```
+
+---
 
 ### Running
 
 **Development:**
+
 ```bash
-python main.py
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 **Production:**
+
 ```bash
 ./run.sh  # Starts Gunicorn with Uvicorn workers
 ```
@@ -366,8 +402,6 @@ Access interactive docs after starting server:
 - **Swagger UI:** `http://localhost:8000/docs`
 - **ReDoc:** `http://localhost:8000/redoc`
 - **OpenAPI:** `http://localhost:8000/openapi.json`
-
-![API Documentation Preview](docs/swagger-screenshot.png)
 
 ## Contributing
 
