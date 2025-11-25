@@ -21,10 +21,26 @@ log_config = {
     },
     "loggers": {
         # The root logger; using an empty string "" applies it to all modules
-        "": {"level": CoreConfig.LOG_LEVEL, "handlers": ["console"], "propagate": False},
+        "": {
+            "level": CoreConfig.LOG_LEVEL,
+            "handlers": ["console"],
+            "propagate": False,
+        },
         # Explicitly override Uvicorn loggers
-        "uvicorn": {"handlers": ["console"], "level": CoreConfig.LOG_LEVEL, "propagate": False},
-        "uvicorn.access": {"handlers": ["console"], "level": CoreConfig.LOG_LEVEL, "propagate": False},
-        "uvicorn.error": {"handlers": ["console"], "level": CoreConfig.LOG_LEVEL, "propagate": False}
+        "uvicorn": {
+            "handlers": ["console"],
+            "level": CoreConfig.LOG_LEVEL,
+            "propagate": False,
+        },
+        "uvicorn.access": {
+            "handlers": ["console"],
+            "level": CoreConfig.LOG_LEVEL,
+            "propagate": False,
+        },
+        "uvicorn.error": {
+            "handlers": ["console"],
+            "level": CoreConfig.LOG_LEVEL,
+            "propagate": False,
+        },
     },
 }

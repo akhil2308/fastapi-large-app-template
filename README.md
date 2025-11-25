@@ -354,11 +354,9 @@ cd fastapi-large-app-template
 # Install uv (if not already installed)
 pip install uv
 
-# Install dependencies
-uv pip install .
-
-# Or if you prefer system install
-uv pip install --system .
+# Sync dependencies and create virtual environment
+# This installs all packages defined in pyproject.toml
+uv sync --all-extras
 ````
 
 ---
@@ -379,13 +377,13 @@ cp .env.example .env
 **Generate new migration:**
 
 ```bash
-alembic -c app/alembic.ini revision --autogenerate -m "message"
+uv run alembic -c app/alembic.ini revision --autogenerate -m "message"
 ```
 
 **Apply migrations:**
 
 ```bash
-alembic -c app/alembic.ini upgrade head
+uv run alembic -c app/alembic.ini upgrade head
 ```
 
 ---
@@ -395,7 +393,7 @@ alembic -c app/alembic.ini upgrade head
 **Development:**
 
 ```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 **Production:**
@@ -403,6 +401,37 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```bash
 ./run.sh  # Starts Gunicorn with Uvicorn workers
 ```
+
+---
+
+## Code Standards & Quality 🛡️
+
+This project enforces code quality using **Ruff** (linter/formatter) and **Mypy** (static type checker).
+
+### Manual Checks
+
+**1. Linting & Formatting (Ruff)**
+
+```bash
+# See what code Ruff wants to fix (Dry Run)
+uv run ruff check .
+
+# Actually fix the code (Auto-formatting & Import sorting)
+uv run ruff check . --fix
+uv run ruff format .
+```
+
+**2. Static Type Checking (Mypy)**
+
+```bash
+# Check for type errors
+uv run mypy .
+```
+
+> **Note:** 🔒 A **pre-commit hook** is configured. When you attempt to `git commit`, these checks will automatically run to ensure no bad code is pushed to the repository.
+
+```
+---
 
 ## API Documentation 📚
 

@@ -1,12 +1,14 @@
 import os
+
 from decouple import Csv, config
 from dotenv import load_dotenv
 
 # quote_plus can be used to encode the password in the connection string (to not have issues with special characters)
-# from urllib.parse import quote_plus 
+# from urllib.parse import quote_plus
 
-# loads envs in .env file 
+# loads envs in .env file
 load_dotenv()
+
 
 # CORE SETTINGS
 class CoreConfig:
@@ -27,14 +29,14 @@ class DBConfig:
     MAX_OVERFLOW = config("POSTGRES_MAX_OVERFLOW", default=10, cast=int)
 
     # Async URL (app runtime)
-    ASYNC_URL = (
-        f"postgresql+asyncpg://{USER}:{PASSWORD}@{HOST}:{PORT}/{NAME}"
-    ).rstrip("/")
+    ASYNC_URL = (f"postgresql+asyncpg://{USER}:{PASSWORD}@{HOST}:{PORT}/{NAME}").rstrip(
+        "/"
+    )
 
     # Sync URL (alembic migrations)
-    SYNC_URL = (
-        f"postgresql+psycopg2://{USER}:{PASSWORD}@{HOST}:{PORT}/{NAME}"
-    ).rstrip("/")
+    SYNC_URL = (f"postgresql+psycopg2://{USER}:{PASSWORD}@{HOST}:{PORT}/{NAME}").rstrip(
+        "/"
+    )
 
 
 # JWT / AUTH SETTINGS
