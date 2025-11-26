@@ -16,12 +16,25 @@ router = APIRouter()
 SERVICE = "todo"
 
 
-@router.post("/")
+@router.post(
+    "/",
+    summary="Create a new To-Do",
+    status_code=status.HTTP_201_CREATED,
+    tags=["Todo"],
+    responses={
+        429: {"description": "Daily write limit exceeded"},
+        500: {"description": "Internal Server Error"},
+    },
+)
 async def create_todo(
     body: TodoCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """
+    Creates a new Todo item.
+    Requires 'todo_write' permissions.
+    """
     try:
         assert current_user.user_id is not None
         await user_rate_limiter(
@@ -43,13 +56,25 @@ async def create_todo(
         ) from e
 
 
-@router.get("/")
+@router.get(
+    "/",
+    summary="List all To-Dos",
+    status_code=status.HTTP_200_OK,
+    tags=["Todo"],
+    responses={
+        429: {"description": "Daily read limit exceeded"},
+        500: {"description": "Internal Server Error"},
+    },
+)
 async def get_todos(
     page_number: int = Query(1, ge=1),
     page_size: int = Query(10, gt=0),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """
+    Retrieve a paginated list of Todo items for the current user.
+    """
     try:
         assert current_user.user_id is not None
         await user_rate_limiter(

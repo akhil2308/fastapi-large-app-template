@@ -13,8 +13,21 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.post("/register")
+@router.post(
+    "/register",
+    summary="Register a new user",
+    status_code=status.HTTP_201_CREATED,
+    tags=["Authentication"],
+    responses={
+        400: {"description": "Username or email already exists"},
+        500: {"description": "Internal Server Error"},
+    },
+)
 async def register(body: UserCreateRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Creates a new user account.
+    Returns the user data upon successful registration.
+    """
     try:
         user = await register_user(db, body)
         if not user:
@@ -37,8 +50,20 @@ async def register(body: UserCreateRequest, db: AsyncSession = Depends(get_db)):
         ) from e
 
 
-@router.post("/login")
+@router.post(
+    "/login",
+    summary="Login to get access token",
+    status_code=status.HTTP_200_OK,
+    tags=["Authentication"],
+    responses={
+        401: {"description": "Invalid credentials (wrong username or password)"},
+        500: {"description": "Internal Server Error"},
+    },
+)
 async def login(body: UserLoginRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Authenticates a user and returns a JWT access token.
+    """
     try:
         user = await login_user(db, body.username, body.password)
         if not user:
