@@ -1,21 +1,20 @@
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from logging.config import dictConfig
 
-from redis.asyncio import Redis
-from fastapi_limiter import FastAPILimiter
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.responses import JSONResponse
+from fastapi_limiter import FastAPILimiter
+from redis.asyncio import Redis
 
-from app.health.health_router import router as health_router
-from app.user.user_router import router as user_router
-from app.todo.todo_router import router as todo_router
-from app.core.settings import CoreConfig, RedisConfig
-
-from logging.config import dictConfig
 from app.core.logging_config import log_config
+from app.core.settings import CoreConfig, RedisConfig
+from app.health.health_router import router as health_router
+from app.todo.todo_router import router as todo_router
+from app.user.user_router import router as user_router
 
 dictConfig(log_config)
 
@@ -32,8 +31,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         encoding="utf-8",
         decode_responses=True,
         socket_connect_timeout=RedisConfig.CONNECTION_TIMEOUT,
-        socket_keepalive=True,        # Enable TCP keepalive
-        retry_on_timeout=True,        # Retry on timeout errors
+        socket_keepalive=True,  # Enable TCP keepalive
+        retry_on_timeout=True,  # Retry on timeout errors
         max_connections=RedisConfig.MAX_CONNECTIONS,
         health_check_interval=RedisConfig.HEALTH_CHECK_INTERVAL,
     )
@@ -64,24 +63,21 @@ app = FastAPI(
     description="A production-ready template for building scalable FastAPI applications with modular architecture and essential integrations.",
     version="1.0.0",
     docs_url="/docs",
-    openapi_url = "/openapi.json",
+    openapi_url="/openapi.json",
     lifespan=lifespan,
 )
 
 
 # Network/Server Level	(For Allowing Server to Server Communication)
-app.add_middleware(
-    TrustedHostMiddleware,
-    allowed_hosts=CoreConfig.ALLOWED_HOSTS
-)
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=CoreConfig.ALLOWED_HOSTS)
 
 # Protection from Browser/Application Level (For Allowing Browser to Server Communication)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CoreConfig.CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"], # ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
-    allow_headers=["*"], # ["Content-Type", "Authorization"]
+    allow_methods=["*"],  # ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    allow_headers=["*"],  # ["Content-Type", "Authorization"]
 )
 
 app.include_router(health_router, prefix="/api/v1/health", tags=["Health"])
@@ -97,9 +93,10 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         content={
             "status": "error",
             "message": "Validation Failed",
-            "errors": exc.errors()
-        }
+            "errors": exc.errors(),
+        },
     )
+
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
@@ -108,6 +105,6 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         content={
             "status": "error",
             "message": exc.detail,
-            "errors": getattr(exc, "errors", None)
-        }
+            "errors": getattr(exc, "errors", None),
+        },
     )

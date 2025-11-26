@@ -1,4 +1,5 @@
 """Gunicorn development config file"""
+
 import os
 
 wsgi_app = "app.main:app"

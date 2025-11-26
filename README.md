@@ -14,7 +14,7 @@ A production-ready FastAPI template designed for building secure, scalable APIs 
 - **Redis Connection Pooling** (Async) with fail-open strategy 🧠
 - **PostgreSQL Connection Pooling** (Async) with health checks 🐘
 - **Standardized API Responses** 📦
-- **Alembic for Database Migrations** 🗄️  
+- **Alembic for Database Migrations** 🗄️
 - **Modern Package Management with `uv`** ⚡
 - **Production-Ready Error Handling** 🛡️
 - **Docker** + **Gunicorn** + **Uvicorn** Stack 🐳⚡
@@ -93,7 +93,7 @@ A production-ready FastAPI template designed for building secure, scalable APIs 
 
 ### Database Pooling Configuration
 
-**PostgreSQL (SQLAlchemy 2.0 + asyncpg):** 
+**PostgreSQL (SQLAlchemy 2.0 + asyncpg):**
 ```python
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 
@@ -163,17 +163,17 @@ async def create_todo(
     try:
         # Rate limit check
         await user_rate_limiter(current_user.user_id, "todo_write")
-        
+
         # Business logic
         data = await create_todo_service(current_user.user_id, body, db)
-        
+
         # Standardized success response
         return {
             "status": "success",
             "message": "Todo created",
             "data": data
         }
-        
+
     except HTTPException as e:
         # Preserve existing HTTP exceptions
         raise
@@ -205,9 +205,9 @@ async def user_rate_limiter(
     key = f"rl:user:{user_id}:{service}"
     try:
         pexpire = await FastAPILimiter.redis.evalsha(
-            FastAPILimiter.lua_sha, 1, 
-            key, 
-            str(times), 
+            FastAPILimiter.lua_sha, 1,
+            key,
+            str(times),
             str(seconds * 1000)  # Convert to milliseconds
         )
         if pexpire != 0:
@@ -220,12 +220,12 @@ async def user_rate_limiter(
         # Fail-open during Redis outages
 ```
 
-**Features:**  
-✅ User+service specific limits  
-✅ Atomic Redis operations via LUA scripts  
-✅ Fail-open circuit breaker pattern  
-✅ Millisecond precision timeouts  
-✅ Automatic retry-after calculation  
+**Features:**
+✅ User+service specific limits
+✅ Atomic Redis operations via LUA scripts
+✅ Fail-open circuit breaker pattern
+✅ Millisecond precision timeouts
+✅ Automatic retry-after calculation
 
 ---
 
@@ -258,17 +258,17 @@ logging_config = {
 }
 ```
 
-**Log Example:**  
+**Log Example:**
 ```
 [2024-05-20 14:30:45 +0000] [1234] [INFO] todo.routers.create_todo:52 - Created todo ID:42
 ```
 
-**Features:**  
-📌 Consistent timestamp with timezone  
-📌 Process ID tracking  
-📌 Module/function/line number context  
-📌 Uvicorn log unification  
-📌 Production-ready INFO level defaults  
+**Features:**
+📌 Consistent timestamp with timezone
+📌 Process ID tracking
+📌 Module/function/line number context
+📌 Uvicorn log unification
+📌 Production-ready INFO level defaults
 
 ---
 
@@ -327,11 +327,11 @@ async def http_handler(request: Request, exc: HTTPException):
     )
 ```
 
-**Features:**  
-✅ RFC-compliant error formats  
-✅ Automatic validation error parsing  
-✅ Consistent error code mapping  
-✅ Detailed error context preservation  
+**Features:**
+✅ RFC-compliant error formats
+✅ Automatic validation error parsing
+✅ Consistent error code mapping
+✅ Detailed error context preservation
 
 
 ## Getting Started
@@ -354,11 +354,13 @@ cd fastapi-large-app-template
 # Install uv (if not already installed)
 pip install uv
 
-# Install dependencies
-uv pip install .
+# Sync dependencies and create virtual environment
+# This installs all packages defined in pyproject.toml
+uv sync --all-extras
 
-# Or if you prefer system install
-uv pip install --system .
+# Install Git Hooks
+# This ensures code quality checks run automatically on commit
+uv run pre-commit install
 ````
 
 ---
@@ -379,13 +381,13 @@ cp .env.example .env
 **Generate new migration:**
 
 ```bash
-alembic -c app/alembic.ini revision --autogenerate -m "message"
+uv run alembic -c app/alembic.ini revision --autogenerate -m "message"
 ```
 
 **Apply migrations:**
 
 ```bash
-alembic -c app/alembic.ini upgrade head
+uv run alembic -c app/alembic.ini upgrade head
 ```
 
 ---
@@ -395,7 +397,7 @@ alembic -c app/alembic.ini upgrade head
 **Development:**
 
 ```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 **Production:**
@@ -403,6 +405,37 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```bash
 ./run.sh  # Starts Gunicorn with Uvicorn workers
 ```
+
+---
+
+## Code Standards & Quality 🛡️
+
+This project enforces code quality using **Ruff** (linter/formatter) and **Mypy** (static type checker).
+
+### Manual Checks
+
+**1. Linting & Formatting (Ruff)**
+
+```bash
+# See what code Ruff wants to fix (Dry Run)
+uv run ruff check .
+
+# Actually fix the code (Auto-formatting & Import sorting)
+uv run ruff check . --fix
+uv run ruff format .
+```
+
+**2. Static Type Checking (Mypy)**
+
+```bash
+# Check for type errors
+uv run mypy .
+```
+
+> **Note:** 🔒 A **pre-commit hook** is configured. When you attempt to `git commit`, these checks will automatically run to ensure no bad code is pushed to the repository.
+
+```
+---
 
 ## API Documentation 📚
 
