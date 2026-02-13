@@ -476,7 +476,6 @@ uv run mypy .
 
 > **Note:** 🔒 A **pre-commit hook** is configured. When you attempt to `git commit`, these checks will automatically run to ensure no bad code is pushed to the repository.
 
-```
 ---
 
 ## API Documentation 📚
