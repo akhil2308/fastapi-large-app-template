@@ -14,7 +14,6 @@ engine = create_async_engine(
     max_overflow=DBConfig.MAX_OVERFLOW,
     pool_recycle=300,
     pool_pre_ping=True,
-    future=True,  # Enable SQLAlchemy 2.0 future APIs
 )
 
 # Create async session factory

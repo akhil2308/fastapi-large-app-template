@@ -13,7 +13,11 @@ load_dotenv()
 # CORE SETTINGS
 class CoreConfig:
     ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="127.0.0.1,localhost", cast=Csv())
-    CORS_ORIGINS = config("CORS_ORIGINS", default="*", cast=Csv())
+    CORS_ORIGINS = config(
+        "CORS_ORIGINS",
+        default="http://localhost:3000,http://localhost:8000",
+        cast=Csv(),
+    )
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 
 
@@ -41,7 +45,9 @@ class DBConfig:
 
 # JWT / AUTH SETTINGS
 class JWTConfig:
-    SECRET_KEY = os.getenv("JWT_SECRET_KEY", "change-me")
+    SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+    if not SECRET_KEY:
+        raise ValueError("JWT_SECRET_KEY environment variable must be set")
     ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
     ACCESS_TOKEN_EXPIRE_MIN = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 
