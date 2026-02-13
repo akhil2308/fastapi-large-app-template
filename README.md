@@ -365,6 +365,45 @@ uv run pre-commit install
 
 ---
 
+## Using Makefile
+
+This project includes a Makefile with convenient commands. Run `make help` to see all available targets.
+
+```bash
+# Show all available commands
+make help
+
+# Install dependencies and setup git hooks
+make install
+
+# Development server
+make dev
+
+# Production server
+make prod
+
+# Run tests
+make test
+
+# Database migrations
+make migrate
+make migrate-create MSG="your migration message"
+
+# Code quality
+make check-env
+make lint
+make format
+make typecheck
+
+# Full CI pipeline
+make ci
+
+# Clean generated files
+make clean
+```
+
+---
+
 ### Configuration
 
 #### Set environment variables
