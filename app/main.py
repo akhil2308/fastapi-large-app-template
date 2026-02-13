@@ -1,5 +1,6 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from logging import getLogger
 from logging.config import dictConfig
 
 from fastapi import FastAPI, HTTPException, Request
@@ -10,11 +11,21 @@ from fastapi.responses import JSONResponse
 from fastapi_limiter import FastAPILimiter
 from redis.asyncio import Redis
 
+from app.core.database import AsyncSessionLocal
+from app.core.health_check import (
+    DatabaseConnectionError,
+    RedisConnectionError,
+    check_database_health,
+    check_redis_health,
+    format_startup_error,
+)
 from app.core.logging_config import log_config
 from app.core.settings import CoreConfig, RedisConfig
 from app.health.health_router import router as health_router
 from app.todo.todo_router import router as todo_router
 from app.user.user_router import router as user_router
+
+logger = getLogger(__name__)
 
 dictConfig(log_config)
 
@@ -37,13 +48,23 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         health_check_interval=RedisConfig.HEALTH_CHECK_INTERVAL,
     )
 
+    # Verify all required services are available - fail fast with clear error messages
     try:
-        # verify connection
-        try:
-            await redis.ping()
-        except ConnectionError as e:
-            raise RuntimeError("Redis connection failed") from e
+        # Check Redis connectivity
+        await check_redis_health(redis)
 
+        # Check Database connectivity
+        await check_database_health(AsyncSessionLocal)
+
+    except RedisConnectionError as e:
+        logger.error(format_startup_error(e))
+        raise RuntimeError(format_startup_error(e)) from e
+
+    except DatabaseConnectionError as e:
+        logger.error(format_startup_error(e))
+        raise RuntimeError(format_startup_error(e)) from e
+
+    try:
         # init limiter using the redis client
         await FastAPILimiter.init(redis)
 
