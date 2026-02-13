@@ -58,66 +58,29 @@ This template includes a **production-grade OpenTelemetry observability setup** 
 
 ## Project Structure 🌳
 
-<!-- TREE_START -->
-```
-.
-├── app
-│   ├── alembic
-│   │   ├── versions
-│   │   ├── README
-│   │   ├── env.py
-│   │   └── script.py.mako
-│   ├── core
-│   │   ├── __init__.py
-│   │   ├── database.py
-│   │   ├── enums.py
-│   │   ├── health_check.py
-│   │   ├── logging_config.py
-│   │   ├── models.py
-│   │   └── settings.py
-│   ├── health
-│   │   └── health_router.py
-│   ├── todo
-│   │   ├── todo_crud.py
-│   │   ├── todo_model.py
-│   │   ├── todo_router.py
-│   │   ├── todo_schema.py
-│   │   └── todo_service.py
-│   ├── user
-│   │   ├── user_auth.py
-│   │   ├── user_crud.py
-│   │   ├── user_model.py
-│   │   ├── user_router.py
-│   │   ├── user_schema.py
-│   │   └── user_service.py
-│   ├── utils
-│   │   ├── auth_dependency.py
-│   │   ├── helper.py
-│   │   └── rate_limiter.py
-│   ├── observability
-│   │   ├── cache_metrics.py
-│   │   ├── db_metrics.py
-│   │   ├── metrics.py
-│   │   └── telemetry.py
-│   ├── alembic.ini
-│   └── main.py
-├── docs
-│   └── swagger-screenshot.png
-├── tests
-│   ├── __init__.py
-│   └── test_health.py
-├── CONTRIBUTORS.txt
-├── Dockerfile
-├── LICENSE
-├── Makefile
-├── README.md
-├── pyproject.toml
-├── run.sh
-└── uv.lock
+The repository follows a **modular, domain-oriented structure** designed for large, production-grade FastAPI applications:
 
-11 directories, 39 files
-```
-<!-- TREE_END -->
+- `app/` — Core FastAPI application
+  - Domain modules (`user`, `todo`, `health`)
+  - Core configuration, database, logging
+  - OpenTelemetry observability setup
+  - Alembic migrations
+  - Application entry point (`main.py`)
+
+- `docker/observability/` — Local observability stack
+  - OpenTelemetry Collector
+  - Prometheus
+  - Grafana (pre-provisioned dashboards & datasources)
+  - Tempo (distributed tracing)
+
+- `docs/` — Documentation & assets
+  - Observability guide and dashboards
+  - Architecture diagrams and screenshots
+
+- `tests/` — Automated tests
+
+- Root files — `Dockerfile`, `Makefile`, `run.sh`, `pyproject.toml`, `uv.lock`, etc.
+
 ---
 
 ## Key Implementations 🔑
