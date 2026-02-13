@@ -3,11 +3,55 @@ import os
 from decouple import Csv, config
 from dotenv import load_dotenv
 
+from app.core.enums import Environment
+
 # quote_plus can be used to encode the password in the connection string (to not have issues with special characters)
 # from urllib.parse import quote_plus
 
 # loads envs in .env file
 load_dotenv()
+
+
+# APP CONFIGURATION
+class AppConfig:
+    """
+    Application-level configuration including environment and debug settings.
+
+    Environment is determined by ENV env var (default: local)
+    DEBUG can be explicitly set via DEBUG env var or inferred from environment.
+    """
+
+    # Environment configuration
+    ENV = os.getenv("ENV", "local").lower()
+    ENVIRONMENT = Environment.from_string(ENV)
+
+    # Debug configuration
+    # Priority: Explicit DEBUG env var > Environment inference
+    _explicit_debug = os.getenv("DEBUG", "").lower()
+
+    if _explicit_debug in ("true", "1", "yes"):
+        DEBUG = True
+    elif _explicit_debug in ("false", "0", "no"):
+        DEBUG = False
+    else:
+        # Infer from environment
+        DEBUG = ENVIRONMENT in (Environment.LOCAL, Environment.DEV)
+
+    # Logging level - can be overridden via LOG_LEVEL env var
+    # Default varies by environment when not explicitly set
+    _explicit_log_level = os.getenv("LOG_LEVEL", "")
+
+    if _explicit_log_level:
+        LOG_LEVEL = _explicit_log_level.upper()
+    else:
+        # Default LOG_LEVEL based on environment
+        DEFAULT_LOG_LEVELS = {
+            Environment.LOCAL: "DEBUG",
+            Environment.DEV: "DEBUG",
+            Environment.STAGE: "INFO",
+            Environment.PROD: "WARNING",
+        }
+        LOG_LEVEL = DEFAULT_LOG_LEVELS.get(ENVIRONMENT, "INFO")
 
 
 # CORE SETTINGS
@@ -18,13 +62,14 @@ class CoreConfig:
         default="http://localhost:3000,http://localhost:8000",
         cast=Csv(),
     )
-    LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+    # Use LOG_LEVEL from AppConfig
+    LOG_LEVEL = AppConfig.LOG_LEVEL
 
 
 # DATABASE SETTINGS
 class DBConfig:
     HOST = os.getenv("POSTGRES_HOST", "localhost")
-    PORT = os.getenv("POSTGRES_PORT", "5432")
+    PORT = int(os.getenv("POSTGRES_PORT", "5432"))
     USER = os.getenv("POSTGRES_USER", "postgres")
     PASSWORD = os.getenv("POSTGRES_PASSWORD", "password")
     NAME = os.getenv("POSTGRES_NAME", "postgres")
