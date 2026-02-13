@@ -1,0 +1,69 @@
+# Local observability stack for development and testing.
+# Not intended for production use.
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: otel-collector
+    command: ["--config", "/etc/otel-collector/otel-collector.yaml"]
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "9464:9464"   # Prometheus metrics
+    volumes:
+      - ./otel-collector.yaml:/etc/otel-collector/otel-collector.yaml:ro
+    networks:
+      - observability
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yaml:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yaml"
+      - "--storage.tsdb.path=/prometheus"
+    networks:
+      - observability
+
+  tempo:
+    image: grafana/tempo:2.10.0
+    container_name: tempo
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    ports:
+      - "3200:3200"   # HTTP API only; OTLP handled internally via Docker network
+    volumes:
+      - ./tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    networks:
+      - observability
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    environment:
+      # Enable anonymous access with admin privileges for local development convenience.
+      # Disable in production; use proper authentication and reverse proxy.
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_FEATURE_TOGGLES_ENABLE=traceToMetrics
+    networks:
+      - observability
+    depends_on:
+      - prometheus
+      - tempo
+
+networks:
+  observability:
+    driver: bridge
+
+volumes:
+  prometheus-data:
+  tempo-data:
+  grafana-data:

@@ -1,0 +1,26 @@
+# Grafana datasources: Prometheus for metrics, Tempo for traces.
+# Both datasources are pre-configured for local development.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    accessMode: proxy
+
+  - name: Tempo
+    type: tempo
+    url: http://tempo:3200
+    editable: false
+    accessMode: proxy
+    jsonData:
+      httpMethod: GET
+      # Enable trace-to-metrics correlation in Grafana Explore.
+      tracesToMetrics:
+        datasourceUid: Prometheus
+      serviceMap:
+        datasourceUid: Prometheus
+      nodeGraph:
+        enabled: true

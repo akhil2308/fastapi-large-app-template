@@ -1,4 +1,3 @@
-import time
 from logging import getLogger
 
 from opentelemetry import metrics
@@ -9,11 +8,6 @@ logger = getLogger(__name__)
 _metrics_initialized = False
 
 # Metrics instruments (will be created lazily)
-http_requests_counter = None
-http_errors_counter = None
-http_duration_hist = None
-_in_flight = {"v": 0}
-_inflight_callback = None
 db_query_hist = None
 db_query_counter = None
 redis_cmd_counter = None
@@ -39,38 +33,11 @@ def create_metrics():
 
     meter = metrics.get_meter(__name__)
 
-    global http_requests_counter, http_errors_counter, http_duration_hist
     global db_query_hist, db_query_counter
     global redis_cmd_counter, redis_cmd_hist
     global ratelimit_allowed, ratelimit_rejected, ratelimit_degraded
     global instrumentation_failures
     global todos_created, users_registered
-
-    # HTTP metrics
-    http_requests_counter = meter.create_counter(
-        "app.http.requests_total", description="Total number of HTTP requests"
-    )
-    http_errors_counter = meter.create_counter(
-        "app.http.errors_total", description="Total number of HTTP errors (5xx)"
-    )
-    http_duration_hist = meter.create_histogram(
-        "app.http.request_duration_ms",
-        description="HTTP request duration in milliseconds",
-        unit="ms",
-    )
-
-    # In-flight requests observable (simple in-memory counter)
-    def _inflight_callback(options):
-        """Callback for observable gauge - returns current in-flight request count."""
-        from app.observability.telemetry import get_environment
-
-        yield _in_flight["v"], {"env": get_environment()}
-
-    meter.create_observable_gauge(
-        name="app.http.in_flight_requests",
-        callbacks=[_inflight_callback],
-        description="Current number in-flight HTTP requests",
-    )
 
     # DB metrics
     db_query_hist = meter.create_histogram(
@@ -141,40 +108,6 @@ def _safe_record(histogram, value, labels):
         pass  # Never let metrics crash requests
 
 
-# Helpers for HTTP middleware
-def record_request_start() -> float:
-    """Record the start of an HTTP request and return the start time in nanoseconds."""
-    _in_flight["v"] += 1
-    return time.time_ns()
-
-
-def record_request_end(start_ns: float, method: str, route: str, status_code: int):
-    """
-    Record the end of an HTTP request with duration and status code.
-
-    Args:
-        start_ns: Start time in nanoseconds (from record_request_start)
-        method: HTTP method (GET, POST, etc.)
-        route: Normalized route path (e.g., /users/{user_id})
-        status_code: HTTP status code
-    """
-    duration_ms = (time.time_ns() - start_ns) / 1e6
-    labels = {
-        "http.method": method,
-        "http.route": route,
-        "http.status_code": str(status_code),
-        "env": _get_env(),
-    }
-
-    # Safely record metrics (never let them crash requests)
-    _safe_add(http_requests_counter, 1, labels)
-    _safe_record(http_duration_hist, duration_ms, labels)
-    if status_code >= 500:
-        _safe_add(http_errors_counter, 1, labels)
-
-    _in_flight["v"] -= 1
-
-
 # Helpers for DB
 def record_db_query(name: str, duration_ms: float, operation: str = "query"):
     """
@@ -189,7 +122,6 @@ def record_db_query(name: str, duration_ms: float, operation: str = "query"):
         "db.system": "postgresql",
         "db.statement_name": name,
         "db.operation": operation,
-        "env": _get_env(),
     }
     _safe_record(db_query_hist, duration_ms, labels)
     _safe_add(db_query_counter, 1, labels)
@@ -204,7 +136,7 @@ def record_redis_command(command: str, duration_ms: float):
         command: Redis command name (GET, SET, etc.)
         duration_ms: Command duration in milliseconds
     """
-    labels = {"redis.command": command.upper(), "env": _get_env()}
+    labels = {"redis.command": command.upper()}
     _safe_add(redis_cmd_counter, 1, labels)
     _safe_record(redis_cmd_hist, duration_ms, labels)
 
@@ -218,7 +150,7 @@ def record_ratelimit_decision(allowed: bool, service: str):
         allowed: True if request was allowed, False if rejected
         service: Service name for the rate limit bucket
     """
-    labels = {"service": service, "env": _get_env()}
+    labels = {"ratelimit_service": service}
     if allowed:
         _safe_add(ratelimit_allowed, 1, labels)
     else:
@@ -232,7 +164,7 @@ def record_ratelimit_degraded(service: str):
     Args:
         service: Service name for the rate limit bucket
     """
-    labels = {"service": service, "env": _get_env()}
+    labels = {"ratelimit_service": service}
     _safe_add(ratelimit_degraded, 1, labels)
 
 
@@ -243,5 +175,5 @@ def record_instrumentation_failure(component: str):
     Args:
         component: Name of the component (e.g., 'sqlalchemy', 'redis')
     """
-    labels = {"component": component, "env": _get_env()}
+    labels = {"component": component}
     _safe_add(instrumentation_failures, 1, labels)

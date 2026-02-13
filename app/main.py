@@ -22,7 +22,6 @@ from app.core.health_check import (
 from app.core.logging_config import log_config
 from app.core.settings import CoreConfig, RedisConfig
 from app.health.health_router import router as health_router
-from app.observability.middleware import MetricsMiddleware
 from app.observability.telemetry import init_telemetry
 from app.todo.todo_router import router as todo_router
 from app.user.user_router import router as user_router
@@ -103,15 +102,12 @@ app.add_middleware(
     allow_headers=["*"],  # ["Content-Type", "Authorization"]
 )
 
-# Initialize telemetry BEFORE routers (instruments FastAPI and adds auto-tracing)
-init_telemetry(app=app, sqlalchemy_engine=engine)
-
-# Add metrics middleware AFTER telemetry initialization
-app.add_middleware(MetricsMiddleware)
-
 app.include_router(health_router, prefix="/api/v1/health", tags=["Health"])
 app.include_router(user_router, prefix="/api/v1/user", tags=["User"])
 app.include_router(todo_router, prefix="/api/v1/todo", tags=["Todo"])
+
+# Initialize telemetry (instruments FastAPI and adds auto-tracing)
+init_telemetry(app=app, sqlalchemy_engine=engine)
 
 
 # Exception Handlers for uniform error response
