@@ -1,0 +1,200 @@
+{
+  "uid": "otel-golden-signals-v2",
+  "title": "Golden Signals — FastAPI (OTel) — Production",
+  "tags": ["otel", "golden-signals", "fastapi"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "10s",
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Request Rate (RPS)",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "targets": [
+        { "expr": "sum(rate(otel_http_server_duration_milliseconds_count[1m]))", "refId": "A" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "req/s" } }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Error Rate (5xx %) — 5m",
+      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "expr": "((sum(rate(otel_http_server_duration_milliseconds_count{http_status_code=~\"5..\"}[5m])))/(sum(rate(otel_http_server_duration_milliseconds_count[5m]))))*100",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percent" } }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "P95 Latency (ms)",
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(otel_http_server_duration_milliseconds_bucket[5m])))",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ms" } }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "In-flight Requests",
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
+      "targets": [
+        { "expr": "sum(otel_http_server_active_requests)", "refId": "A" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "none" } }
+    },
+
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "HTTP Latency — P50 / P95 / P99 (ms)",
+      "gridPos": { "x": 0, "y": 4, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(otel_http_server_duration_milliseconds_bucket[5m])))",
+          "legendFormat": "P50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(otel_http_server_duration_milliseconds_bucket[5m])))",
+          "legendFormat": "P95",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(otel_http_server_duration_milliseconds_bucket[5m])))",
+          "legendFormat": "P99",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ms" } }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Top 10 Slowest Endpoints (P95)",
+      "gridPos": { "x": 12, "y": 4, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "topk(10, histogram_quantile(0.95, sum by (http_target, le) (rate(otel_http_server_duration_milliseconds_bucket[5m]))))",
+          "legendFormat": "{{http_target}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ms" } }
+    },
+
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Requests by Endpoint (RPS)",
+      "gridPos": { "x": 0, "y": 12, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum by (http_target) (rate(otel_http_server_duration_milliseconds_count[1m]))",
+          "legendFormat": "{{http_target}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "req/s" } }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Avg Request Size (bytes)",
+      "gridPos": { "x": 12, "y": 12, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "expr": "rate(otel_http_server_request_size_bytes_sum[5m]) / rate(otel_http_server_request_size_bytes_count[5m])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bytes" } }
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Avg Response Size (bytes)",
+      "gridPos": { "x": 18, "y": 12, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "expr": "rate(otel_http_server_response_size_bytes_sum[5m]) / rate(otel_http_server_response_size_bytes_count[5m])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bytes" } }
+    },
+
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Rate Limiter — Allowed (by service)",
+      "gridPos": { "x": 12, "y": 16, "w": 12, "h": 4 },
+      "targets": [
+        {
+          "expr": "sum by (ratelimit_service) (rate(otel_app_ratelimiter_allowed_total[1m]))",
+          "legendFormat": "{{ratelimit_service}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "req/s" } }
+    },
+
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "Instrumentation Failures (5m rate)",
+      "gridPos": { "x": 0, "y": 20, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "expr": "sum(rate(otel_app_instrumentation_failures_total[5m]))",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "none" } }
+    },
+
+    {
+      "id": 12,
+      "type": "table",
+      "title": "Recent Errors (5xx) — By Endpoint",
+      "gridPos": { "x": 6, "y": 20, "w": 18, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum by (http_target, http_status_code) (rate(otel_http_server_duration_milliseconds_count{http_status_code=~\"5..\"}[5m]))",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "displayName": "value"
+        }
+      }
+    }
+  ],
+  "time": { "from": "now-15m", "to": "now" },
+  "templating": { "list": [] },
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Events",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Golden Signals dashboard for FastAPI (OpenTelemetry). Uses otel_http_server_* metrics and custom rate-limiter + instrumentation failure metrics. Uses http_target for endpoint grouping."
+}
