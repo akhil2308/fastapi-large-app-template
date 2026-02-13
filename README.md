@@ -85,7 +85,6 @@ A production-ready FastAPI template designed for building secure, scalable APIs 
 ├── README.md
 ├── pyproject.toml
 ├── run.sh
-├── tree.txt
 └── uv.lock
 
 11 directories, 39 files
@@ -225,11 +224,11 @@ async def user_rate_limiter(
 ```
 
 **Features:**
-✅ User+service specific limits
-✅ Atomic Redis operations via LUA scripts
-✅ Fail-open circuit breaker pattern
-✅ Millisecond precision timeouts
-✅ Automatic retry-after calculation
+- ✅ User+service specific limits
+- ✅ Atomic Redis operations via LUA scripts
+- ✅ Fail-open circuit breaker pattern
+- ✅ Millisecond precision timeouts
+- ✅ Automatic retry-after calculation
 
 ---
 
@@ -268,11 +267,11 @@ logging_config = {
 ```
 
 **Features:**
-📌 Consistent timestamp with timezone
-📌 Process ID tracking
-📌 Module/function/line number context
-📌 Uvicorn log unification
-📌 Production-ready INFO level defaults
+- 📌 Consistent timestamp with timezone
+- 📌 Process ID tracking
+- 📌 Module/function/line number context
+- 📌 Uvicorn log unification
+- 📌 Production-ready INFO level defaults
 
 ---
 
@@ -332,10 +331,10 @@ async def http_handler(request: Request, exc: HTTPException):
 ```
 
 **Features:**
-✅ RFC-compliant error formats
-✅ Automatic validation error parsing
-✅ Consistent error code mapping
-✅ Detailed error context preservation
+- ✅ RFC-compliant error formats
+- ✅ Automatic validation error parsing
+- ✅ Consistent error code mapping
+- ✅ Detailed error context preservation
 
 
 ## Getting Started
@@ -365,7 +364,7 @@ uv sync --all-extras
 # Install Git Hooks
 # This ensures code quality checks run automatically on commit
 uv run pre-commit install
-````
+```
 
 ---
 

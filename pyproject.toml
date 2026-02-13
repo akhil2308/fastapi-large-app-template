@@ -60,7 +60,10 @@ warn_required_dynamic_aliases = true
 [tool.ruff]
 target-version = "py311"
 line-length = 88
-extend-exclude = ["app/alembic/versions"]
+extend-exclude = [
+    "app/alembic/versions",
+    "README.md",
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
