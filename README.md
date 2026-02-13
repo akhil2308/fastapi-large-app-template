@@ -18,6 +18,7 @@ A production-ready FastAPI template designed for building secure, scalable APIs 
 - **Modern Package Management with `uv`** ⚡
 - **Production-Ready Error Handling** 🛡️
 - **Docker** + **Gunicorn** + **Uvicorn** Stack 🐳⚡
+- **OpenTelemetry Observability** 📊
 
 ## Tech Stack 🛠️
 
@@ -32,6 +33,7 @@ A production-ready FastAPI template designed for building secure, scalable APIs 
 | Rate Limiting          | Redis-backed Custom Implementation  |
 | Package Manager        | `uv` (fast Python installer)        |
 | Containerization       | Docker                              |
+| Observability          | OpenTelemetry                       |
 
 ## Project Structure 🌳
 
@@ -71,6 +73,12 @@ A production-ready FastAPI template designed for building secure, scalable APIs 
 │   │   ├── auth_dependency.py
 │   │   ├── helper.py
 │   │   └── rate_limiter.py
+│   ├── observability
+│   │   ├── cache_metrics.py
+│   │   ├── db_metrics.py
+│   │   ├── metrics.py
+│   │   ├── middleware.py
+│   │   └── telemetry.py
 │   ├── alembic.ini
 │   └── main.py
 ├── docs
@@ -335,6 +343,65 @@ async def http_handler(request: Request, exc: HTTPException):
 - ✅ Automatic validation error parsing
 - ✅ Consistent error code mapping
 - ✅ Detailed error context preservation
+
+---
+
+### 📊 OpenTelemetry Observability
+
+**Implementation:**
+```python
+from app.observability.telemetry import init_telemetry
+from app.observability.middleware import MetricsMiddleware
+
+# Initialize OpenTelemetry (traces + metrics)
+init_telemetry(app=app, sqlalchemy_engine=engine)
+
+# Add metrics middleware
+app.add_middleware(MetricsMiddleware)
+```
+
+**Metrics Available:**
+```python
+# HTTP metrics (automatic via middleware)
+app.http.requests_total        # Request count
+app.http.request_duration_ms   # Request duration
+app.http.errors_total          # 5xx errors
+app.http.in_flight_requests    # Active requests
+
+# Database metrics (via db_timed context manager)
+app.db.query_duration_ms       # Query duration
+app.db.query_count            # Query count
+
+# Redis metrics (via cache_metrics wrappers)
+app.redis.command_duration_ms  # Command duration
+app.redis.commands_total       # Command count
+
+# Rate limiter metrics
+app.ratelimiter.allowed_total   # Allowed requests
+app.ratelimiter.rejected_total # Rejected requests
+app.ratelimiter.degraded_total  # Fail-open count
+
+# Business metrics
+app.todos.created_total       # Todos created
+app.users.registered_total    # Users registered
+```
+
+**Usage Examples:**
+```python
+# Database timing
+async with db_timed("create_todo", operation="insert"):
+    await todo_crud.create(db, body)
+
+# Redis timing
+await redis_set_with_metrics(redis, "key", "value", expire=3600)
+```
+
+**Features:**
+- ✅ Automatic instrumentation for FastAPI, Redis, SQLAlchemy, httpx
+- ✅ Fail-safe metrics (never crash requests)
+- ✅ Degraded mode detection for rate limiting
+- ✅ Environment-aware labels
+- ✅ OTLP export ready
 
 
 ## Getting Started
