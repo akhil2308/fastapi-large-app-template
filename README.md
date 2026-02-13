@@ -18,6 +18,28 @@ A production-ready FastAPI template designed for building secure, scalable APIs 
 - **Modern Package Management with `uv`** ⚡
 - **Production-Ready Error Handling** 🛡️
 - **Docker** + **Gunicorn** + **Uvicorn** Stack 🐳⚡
+- **OpenTelemetry Observability** — metrics, traces, Golden Signals dashboards (Prometheus + Grafana + Tempo) 📊
+
+## Observability 📊
+
+This template includes a **production-grade OpenTelemetry observability setup** designed for real-world systems:
+
+- Automatic FastAPI instrumentation
+- Distributed tracing with Tempo
+- Golden Signals dashboards in Grafana
+- Prometheus metrics via OpenTelemetry
+- Custom application & rate-limiter visibility
+
+### Observability Stack
+
+[![OpenTelemetry](https://img.shields.io/badge/OpenTelemetry-FFFFFF?style=for-the-badge&logo=opentelemetry&logoColor=black)](https://opentelemetry.io/)
+[![Prometheus](https://img.shields.io/badge/Prometheus-E6522C?style=for-the-badge&logo=Prometheus&logoColor=white)](https://prometheus.io/)
+[![Grafana](https://img.shields.io/badge/grafana-%23F46800.svg?style=for-the-badge&logo=grafana&logoColor=white)](https://grafana.com/)
+[![Grafana Tempo](https://img.shields.io/badge/Tempo-000000?style=for-the-badge&logo=grafana&logoColor=white)](https://grafana.com/oss/tempo/)
+
+
+👉 **All observability details live here:**
+📄 [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md)
 
 ## Tech Stack 🛠️
 
@@ -32,64 +54,33 @@ A production-ready FastAPI template designed for building secure, scalable APIs 
 | Rate Limiting          | Redis-backed Custom Implementation  |
 | Package Manager        | `uv` (fast Python installer)        |
 | Containerization       | Docker                              |
+| Observability          | OpenTelemetry                       |
 
 ## Project Structure 🌳
 
-<!-- TREE_START -->
-```
-.
-├── app
-│   ├── alembic
-│   │   ├── versions
-│   │   ├── README
-│   │   ├── env.py
-│   │   └── script.py.mako
-│   ├── core
-│   │   ├── __init__.py
-│   │   ├── database.py
-│   │   ├── enums.py
-│   │   ├── health_check.py
-│   │   ├── logging_config.py
-│   │   ├── models.py
-│   │   └── settings.py
-│   ├── health
-│   │   └── health_router.py
-│   ├── todo
-│   │   ├── todo_crud.py
-│   │   ├── todo_model.py
-│   │   ├── todo_router.py
-│   │   ├── todo_schema.py
-│   │   └── todo_service.py
-│   ├── user
-│   │   ├── user_auth.py
-│   │   ├── user_crud.py
-│   │   ├── user_model.py
-│   │   ├── user_router.py
-│   │   ├── user_schema.py
-│   │   └── user_service.py
-│   ├── utils
-│   │   ├── auth_dependency.py
-│   │   ├── helper.py
-│   │   └── rate_limiter.py
-│   ├── alembic.ini
-│   └── main.py
-├── docs
-│   └── swagger-screenshot.png
-├── tests
-│   ├── __init__.py
-│   └── test_health.py
-├── CONTRIBUTORS.txt
-├── Dockerfile
-├── LICENSE
-├── Makefile
-├── README.md
-├── pyproject.toml
-├── run.sh
-└── uv.lock
+The repository follows a **modular, domain-oriented structure** designed for large, production-grade FastAPI applications:
 
-11 directories, 39 files
-```
-<!-- TREE_END -->
+- `app/` — Core FastAPI application
+  - Domain modules (`user`, `todo`, `health`)
+  - Core configuration, database, logging
+  - OpenTelemetry observability setup
+  - Alembic migrations
+  - Application entry point (`main.py`)
+
+- `docker/observability/` — Local observability stack
+  - OpenTelemetry Collector
+  - Prometheus
+  - Grafana (pre-provisioned dashboards & datasources)
+  - Tempo (distributed tracing)
+
+- `docs/` — Documentation & assets
+  - Observability guide and dashboards
+  - Architecture diagrams and screenshots
+
+- `tests/` — Automated tests
+
+- Root files — `Dockerfile`, `Makefile`, `run.sh`, `pyproject.toml`, `uv.lock`, etc.
+
 ---
 
 ## Key Implementations 🔑

@@ -1,0 +1,16 @@
+# Grafana dashboards provider configuration.
+# Dashboards will be loaded from the provisioning/dashboards directory.
+# Add JSON dashboard files to this directory in future phases.
+apiVersion: 1
+
+providers:
+  - name: 'Dashboards'
+    orgId: 1
+    folder: ''
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards
+      foldersFromFilesStructure: true

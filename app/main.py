@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 from fastapi_limiter import FastAPILimiter
 from redis.asyncio import Redis
 
-from app.core.database import AsyncSessionLocal
+from app.core.database import AsyncSessionLocal, engine
 from app.core.health_check import (
     DatabaseConnectionError,
     RedisConnectionError,
@@ -22,6 +22,7 @@ from app.core.health_check import (
 from app.core.logging_config import log_config
 from app.core.settings import CoreConfig, RedisConfig
 from app.health.health_router import router as health_router
+from app.observability.telemetry import init_telemetry
 from app.todo.todo_router import router as todo_router
 from app.user.user_router import router as user_router
 
@@ -104,6 +105,9 @@ app.add_middleware(
 app.include_router(health_router, prefix="/api/v1/health", tags=["Health"])
 app.include_router(user_router, prefix="/api/v1/user", tags=["User"])
 app.include_router(todo_router, prefix="/api/v1/todo", tags=["Todo"])
+
+# Initialize telemetry (instruments FastAPI and adds auto-tracing)
+init_telemetry(app=app, sqlalchemy_engine=engine)
 
 
 # Exception Handlers for uniform error response

@@ -63,3 +63,5 @@ test.db
 # OS-specific
 .DS_Store
 Thumbs.db
+
+plans/
