@@ -47,7 +47,10 @@ A production-ready FastAPI template designed for building secure, scalable APIs 
 │   ├── core
 │   │   ├── __init__.py
 │   │   ├── database.py
+│   │   ├── enums.py
+│   │   ├── health_check.py
 │   │   ├── logging_config.py
+│   │   ├── models.py
 │   │   └── settings.py
 │   ├── health
 │   │   └── health_router.py
@@ -78,13 +81,14 @@ A production-ready FastAPI template designed for building secure, scalable APIs 
 ├── CONTRIBUTORS.txt
 ├── Dockerfile
 ├── LICENSE
+├── Makefile
 ├── README.md
-├── gunicorn_config.py
 ├── pyproject.toml
 ├── run.sh
-└── tree.txt
+├── tree.txt
+└── uv.lock
 
-11 directories, 35 files
+11 directories, 39 files
 ```
 <!-- TREE_END -->
 ---
