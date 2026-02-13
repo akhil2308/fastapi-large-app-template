@@ -17,12 +17,16 @@ async def create_todo_service(
     return Todo.model_validate(new_todo)
 
 
-async def get_todos_serivce(
+async def get_todos_service(
     user_id: str, page_number: int, page_size: int, db: AsyncSession
 ) -> dict[str, Any]:
     user_todos = await get_todos_by_page_number(db, user_id, page_number, page_size)
     total_count = await get_todos_total_size(db, user_id)
+    total_pages = (total_count + page_size - 1) // page_size if total_count else 0
     return {
         "data": [Todo.model_validate(todo) for todo in user_todos],
         "total_size": total_count,
+        "page_number": page_number,
+        "page_size": page_size,
+        "total_pages": total_pages,
     }

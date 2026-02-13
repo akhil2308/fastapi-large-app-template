@@ -14,8 +14,8 @@ dependencies = [
     "psycopg2-binary ~= 2.9.11",
     "redis ~= 6.0.0",
     "PyJWT ~= 2.9.0",
-    "bcrypt == 4.0.1",
-    "passlib == 1.7.4",
+    "bcrypt >= 4.0.1, < 5.0.0",
+    "passlib >= 1.7.4, < 2.0.0",
     "fastapi-limiter ~= 0.1.6",
     "pydantic ~= 2.8.0",
     "email-validator ~= 2.2.0",
@@ -40,7 +40,7 @@ python_version = "3.11"
 strict = false
 ignore_missing_imports = true
 explicit_package_bases = true
-disallow_untyped_defs = false 
+disallow_untyped_defs = false
 check_untyped_defs = true
 exclude = ["app/alembic/versions"]
 pretty = true
@@ -74,3 +74,6 @@ line-ending = "auto"
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]
+
+[tool.ruff.lint.per-file-ignores]
+"app/alembic/env.py" = ["F401"]

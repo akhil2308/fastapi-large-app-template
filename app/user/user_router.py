@@ -1,16 +1,19 @@
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.settings import RateLimitConfig
 from app.user.user_auth import create_access_token
 from app.user.user_schema import UserCreateRequest, UserLoginRequest
 from app.user.user_service import login_user, register_user
+from app.utils.rate_limiter import ip_rate_limiter
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+AUTH_SERVICE = "auth"
 
 
 @router.post(
@@ -23,12 +26,20 @@ router = APIRouter()
         500: {"description": "Internal Server Error"},
     },
 )
-async def register(body: UserCreateRequest, db: AsyncSession = Depends(get_db)):
+async def register(
+    body: UserCreateRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
     """
     Creates a new user account.
     Returns the user data upon successful registration.
     """
     try:
+        # Rate limit by IP to prevent abuse
+        await ip_rate_limiter(
+            request, f"{AUTH_SERVICE}:register", RateLimitConfig.WRITE_PER_MIN
+        )
         user = await register_user(db, body)
         if not user:
             raise HTTPException(
@@ -60,11 +71,19 @@ async def register(body: UserCreateRequest, db: AsyncSession = Depends(get_db)):
         500: {"description": "Internal Server Error"},
     },
 )
-async def login(body: UserLoginRequest, db: AsyncSession = Depends(get_db)):
+async def login(
+    body: UserLoginRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
     """
     Authenticates a user and returns a JWT access token.
     """
     try:
+        # Rate limit by IP to prevent brute force attacks
+        await ip_rate_limiter(
+            request, f"{AUTH_SERVICE}:login", RateLimitConfig.WRITE_PER_MIN
+        )
         user = await login_user(db, body.username, body.password)
         if not user:
             raise HTTPException(

@@ -29,7 +29,10 @@ async def get_todos_by_offset(
     db: AsyncSession, user_id: str, offset: int = 0, limit: int = 100
 ) -> Sequence[Todo]:
     result = await db.execute(
-        select(Todo).where(Todo.user_id == user_id).offset(offset).limit(limit)
+        select(Todo)
+        .where(Todo.user_id == user_id, Todo.is_deleted.is_(False))
+        .offset(offset)
+        .limit(limit)
     )
     return result.scalars().all()
 
@@ -39,19 +42,26 @@ async def get_todos_by_page_number(
 ) -> Sequence[Todo]:
     offset = (page_number - 1) * page_size
     result = await db.execute(
-        select(Todo).where(Todo.user_id == user_id).offset(offset).limit(page_size)
+        select(Todo)
+        .where(Todo.user_id == user_id, Todo.is_deleted.is_(False))
+        .offset(offset)
+        .limit(page_size)
     )
     return result.scalars().all()
 
 
 async def get_todos_total_size(db: AsyncSession, user_id: str) -> int | None:
     result = await db.execute(
-        select(func.count(Todo.todo_id)).where(Todo.user_id == user_id)
+        select(func.count(Todo.todo_id)).where(
+            Todo.user_id == user_id, Todo.is_deleted.is_(False)
+        )
     )
     return result.scalar()
 
 
-async def get_todos_by_todo_id(db: AsyncSession, todo_id: str, user_id: str):
+async def get_todos_by_todo_id(
+    db: AsyncSession, todo_id: str, user_id: str
+) -> Todo | None:
     result = await db.execute(
         select(Todo).where(Todo.todo_id == todo_id, Todo.user_id == user_id)
     )
@@ -87,11 +97,20 @@ async def update_todo_by_todo_id(
         .values(**update_data)
     )
     await db.commit()
-    await db.refresh(todo_obj)
-    return todo_obj
+
+    # Re-fetch to get updated values
+    result = await db.execute(
+        select(Todo).where(Todo.todo_id == todo_id, Todo.user_id == user_id)
+    )
+    return result.scalars().first()
 
 
-async def delete_todo_by_todo_id(db: AsyncSession, todo_id: str, user_id: str) -> None:
+async def delete_todo_by_todo_id(db: AsyncSession, todo_id: str, user_id: str) -> bool:
+    # Check if todo exists
+    todo_obj = await get_todos_by_todo_id(db, todo_id, user_id)
+    if not todo_obj:
+        return False
+
     # Soft delete implementation
     await db.execute(
         update(Todo)
@@ -99,3 +118,4 @@ async def delete_todo_by_todo_id(db: AsyncSession, todo_id: str, user_id: str) -
         .values(is_deleted=True, deleted_at=datetime.utcnow())
     )
     await db.commit()
+    return True

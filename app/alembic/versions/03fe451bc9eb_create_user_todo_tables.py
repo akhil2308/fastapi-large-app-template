@@ -1,8 +1,8 @@
-"""create user, todo tables
+"""create user todo tables
 
-Revision ID: 35367cb20885
-Revises: 
-Create Date: 2025-11-14 11:34:40.537952+00:00
+Revision ID: 03fe451bc9eb
+Revises:
+Create Date: 2026-02-13 12:21:01.294446+00:00
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '35367cb20885'
+revision: str = '03fe451bc9eb'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -36,6 +36,7 @@ def upgrade() -> None:
     sa.UniqueConstraint('todo_id')
     )
     op.create_index(op.f('ix_todos_id'), 'todos', ['id'], unique=False)
+    op.create_index(op.f('ix_todos_user_id'), 'todos', ['user_id'], unique=False)
     op.create_table('users',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('user_id', sa.String(), nullable=False),
@@ -59,6 +60,7 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_users_user_id'), table_name='users')
     op.drop_index(op.f('ix_users_id'), table_name='users')
     op.drop_table('users')
+    op.drop_index(op.f('ix_todos_user_id'), table_name='todos')
     op.drop_index(op.f('ix_todos_id'), table_name='todos')
     op.drop_table('todos')
     # ### end Alembic commands ###
