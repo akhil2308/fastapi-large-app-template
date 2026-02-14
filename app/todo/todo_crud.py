@@ -1,6 +1,6 @@
 import uuid
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import func, select, update
@@ -115,7 +115,7 @@ async def delete_todo_by_todo_id(db: AsyncSession, todo_id: str, user_id: str) -
     await db.execute(
         update(Todo)
         .where(Todo.todo_id == todo_id, Todo.user_id == user_id)
-        .values(is_deleted=True, deleted_at=datetime.utcnow())
+        .values(is_deleted=True, deleted_at=datetime.now(UTC))
     )
     await db.commit()
     return True
