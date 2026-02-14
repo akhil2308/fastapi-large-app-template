@@ -96,6 +96,8 @@ async def login(
             "message": "Login successful",
             "data": {"access_token": access_token, "token_type": "bearer"},
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error logging in user: {e}", exc_info=True)
         raise HTTPException(

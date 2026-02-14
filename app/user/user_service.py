@@ -13,11 +13,13 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    hashed: str = pwd_context.hash(password)
+    return hashed
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    result: bool = pwd_context.verify(plain_password, hashed_password)
+    return result
 
 
 async def register_user(
