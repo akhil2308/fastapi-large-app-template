@@ -2,6 +2,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import jwt
+from jwt import PyJWTError
 
 from app.core.settings import JWTConfig
 
@@ -17,7 +18,7 @@ def create_access_token(
             minutes=JWTConfig.ACCESS_TOKEN_EXPIRE_MIN
         )
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(
+    encoded_jwt: str = jwt.encode(
         to_encode, JWTConfig.SECRET_KEY, algorithm=JWTConfig.ALGORITHM
     )
     return encoded_jwt
@@ -25,9 +26,9 @@ def create_access_token(
 
 def decode_access_token(token: str) -> dict[str, Any] | None:
     try:
-        payload = jwt.decode(
+        payload: dict[str, Any] = jwt.decode(
             token, JWTConfig.SECRET_KEY, algorithms=[JWTConfig.ALGORITHM]
         )
         return payload
-    except jwt.PyJWTError:
+    except PyJWTError:
         return None

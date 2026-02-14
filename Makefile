@@ -25,7 +25,7 @@ SHELL := bash
 # =============================================================================
 # PHONY Targets
 # =============================================================================
-.PHONY: help install dev prod test lint format typecheck migrate migrate-create clean check-env ci
+.PHONY: help install dev prod test test-unit test-integration test-e2e lint format typecheck migrate migrate-create clean check-env ci
 
 # =============================================================================
 # Default target
@@ -39,7 +39,12 @@ help:
 	@echo "  install         Install dependencies and setup git hooks"
 	@echo "  dev             Run development server"
 	@echo "  prod            Run production server"
-	@echo "  test            Run tests"
+	@echo ""
+	@echo "Testing:"
+	@echo "  test            Run all tests"
+	@echo "  test-unit       Run unit tests only"
+	@echo "  test-integration Run integration tests only"
+	@echo "  test-e2e        Run e2e tests only"
 	@echo ""
 	@echo "Database:"
 	@echo "  migrate         Apply database migrations"
@@ -93,8 +98,20 @@ prod:
 # Testing
 # =============================================================================
 test: check-env
-	@echo "Running tests..."
+	@echo "Running all tests..."
 	$(PYTEST) tests/
+
+test-unit: check-env
+	@echo "Running unit tests..."
+	$(PYTEST) -m unit tests/
+
+test-integration: check-env
+	@echo "Running integration tests..."
+	$(PYTEST) -m integration tests/
+
+test-e2e: check-env
+	@echo "Running e2e tests..."
+	$(PYTEST) -m e2e tests/
 
 # =============================================================================
 # Database Migrations

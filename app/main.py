@@ -8,7 +8,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
-from fastapi_limiter import FastAPILimiter
+from fastapi_limiter import FastAPILimiter  # type: ignore[attr-defined]
 from redis.asyncio import Redis
 
 from app.core.database import AsyncSessionLocal, engine
@@ -113,12 +113,23 @@ init_telemetry(app=app, sqlalchemy_engine=engine)
 # Exception Handlers for uniform error response
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    # Convert errors to serializable format
+    errors = []
+    for error in exc.errors():
+        error_dict = {
+            "type": error.get("type"),
+            "loc": error.get("loc"),
+            "msg": error.get("msg"),
+            "input": error.get("input"),
+        }
+        errors.append(error_dict)
+
     return JSONResponse(
         status_code=422,
         content={
             "status": "error",
             "message": "Validation Failed",
-            "errors": exc.errors(),
+            "errors": errors,
         },
     )
 

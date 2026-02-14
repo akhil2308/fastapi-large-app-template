@@ -59,7 +59,7 @@ async def check_redis_health(redis: Redis) -> None:
         RedisConnectionError: If Redis is unavailable
     """
     try:
-        await redis.ping()
+        await redis.ping()  # type: ignore[misc]
     except Exception as e:
         await redis.close()
         raise RedisConnectionError(
@@ -116,7 +116,7 @@ def format_startup_error(
     if show_details:
         lines = [
             f"ERROR: {error.service_name} is unavailable",
-            f"  Reason: {str(error)}",
+            f"  Reason: {error!s}",
         ]
 
         if error.help_text:

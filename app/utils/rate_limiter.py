@@ -2,7 +2,7 @@ import logging
 from math import ceil
 
 from fastapi import HTTPException, Request, status
-from fastapi_limiter import FastAPILimiter
+from fastapi_limiter import FastAPILimiter  # type: ignore[attr-defined]
 
 from app.observability.metrics import (
     record_ratelimit_decision,
