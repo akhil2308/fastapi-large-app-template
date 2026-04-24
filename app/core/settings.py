@@ -1,5 +1,3 @@
-import os
-
 from decouple import Csv, config
 
 from app.core.enums import Environment
@@ -15,12 +13,12 @@ class AppConfig:
     """
 
     # Environment configuration
-    ENV = os.getenv("ENV", "local").lower()
+    ENV = config("ENV", default="local").lower()
     ENVIRONMENT = Environment.from_string(ENV)
 
     # Debug configuration
     # Priority: Explicit DEBUG env var > Environment inference
-    _explicit_debug = os.getenv("DEBUG", "").lower()
+    _explicit_debug = config("DEBUG", default="").lower()
 
     if _explicit_debug in ("true", "1", "yes"):
         DEBUG = True
@@ -32,7 +30,7 @@ class AppConfig:
 
     # Logging level - can be overridden via LOG_LEVEL env var
     # Default varies by environment when not explicitly set
-    _explicit_log_level = os.getenv("LOG_LEVEL", "")
+    _explicit_log_level = config("LOG_LEVEL", default="")
 
     if _explicit_log_level:
         LOG_LEVEL = _explicit_log_level.upper()
@@ -61,11 +59,11 @@ class CoreConfig:
 
 # DATABASE SETTINGS
 class DBConfig:
-    HOST = os.getenv("POSTGRES_HOST", "localhost")
-    PORT = int(os.getenv("POSTGRES_PORT", "5432"))
-    USER = os.getenv("POSTGRES_USER", "postgres")
-    PASSWORD = os.getenv("POSTGRES_PASSWORD", "password")
-    NAME = os.getenv("POSTGRES_NAME", "postgres")
+    HOST = config("POSTGRES_HOST", default="localhost")
+    PORT = config("POSTGRES_PORT", default=5432, cast=int)
+    USER = config("POSTGRES_USER", default="postgres")
+    PASSWORD = config("POSTGRES_PASSWORD", default="password")
+    NAME = config("POSTGRES_NAME", default="postgres")
 
     POOL_SIZE = config("POSTGRES_POOL_SIZE", default=5, cast=int)
     MAX_OVERFLOW = config("POSTGRES_MAX_OVERFLOW", default=10, cast=int)
@@ -83,19 +81,19 @@ class DBConfig:
 
 # JWT / AUTH SETTINGS
 class JWTConfig:
-    SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+    SECRET_KEY = config("JWT_SECRET_KEY", default=None)
     if not SECRET_KEY:
         raise ValueError("JWT_SECRET_KEY environment variable must be set")
-    ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
-    ACCESS_TOKEN_EXPIRE_MIN = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+    ALGORITHM = config("JWT_ALGORITHM", default="HS256")
+    ACCESS_TOKEN_EXPIRE_MIN = config("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", default=30, cast=int)
 
 
 # REDIS SETTINGS
 class RedisConfig:
-    HOST = os.getenv("REDIS_HOST", "localhost")
-    PORT = int(os.getenv("REDIS_PORT", "6379"))
-    PASSWORD = os.getenv("REDIS_PASSWORD")
-    DB = int(os.getenv("REDIS_DB", "0"))
+    HOST = config("REDIS_HOST", default="localhost")
+    PORT = config("REDIS_PORT", default=6379, cast=int)
+    PASSWORD = config("REDIS_PASSWORD", default=None)
+    DB = config("REDIS_DB", default=0, cast=int)
 
     MAX_CONNECTIONS = config("REDIS_MAX_CONNECTIONS", default=10, cast=int)
     CONNECTION_TIMEOUT = config("REDIS_CONNECTION_TIMEOUT", default=5, cast=int)
