@@ -25,7 +25,7 @@ SHELL := bash
 # =============================================================================
 # PHONY Targets
 # =============================================================================
-.PHONY: help install dev prod test test-unit test-integration test-e2e lint format typecheck migrate migrate-create clean check-env ci
+.PHONY: help install dev prod test test-unit test-integration test-e2e lint format typecheck migrate migrate-create migrate-check clean check-env ci
 
 # =============================================================================
 # Default target
@@ -127,6 +127,10 @@ ifndef MSG
 endif
 	@echo "Creating new migration: $(MSG)"
 	$(ALEMBIC) revision --autogenerate -m "$(MSG)"
+
+migrate-check: check-env
+	@echo "Checking for pending model changes..."
+	$(ALEMBIC) check
 
 # =============================================================================
 # Code Quality
