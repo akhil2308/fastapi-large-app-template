@@ -39,43 +39,41 @@ class TestRegisterUser:
 
     async def test_register_user_duplicate_username(self, test_db):
         """Test registration with duplicate username."""
-        # Create existing user using factory
+        from app.core.exceptions import UserAlreadyExistsError
+
         await UserFactory.create_async(
             db=test_db,
             username="existinguser",
             email="existing@example.com",
         )
 
-        # Try to register with same username
         user_data = UserCreateRequest(
             username="existinguser",
             email="different@example.com",
             password="SecurePass123!",
         )
 
-        result = await register_user(test_db, user_data)
-
-        assert result is None
+        with pytest.raises(UserAlreadyExistsError):
+            await register_user(test_db, user_data)
 
     async def test_register_user_duplicate_email(self, test_db):
         """Test registration with duplicate email."""
-        # Create existing user using factory
+        from app.core.exceptions import UserAlreadyExistsError
+
         await UserFactory.create_async(
             db=test_db,
             username="existinguser",
             email="existing@example.com",
         )
 
-        # Try to register with same email
         user_data = UserCreateRequest(
             username="differentuser",
             email="existing@example.com",
             password="SecurePass123!",
         )
 
-        result = await register_user(test_db, user_data)
-
-        assert result is None
+        with pytest.raises(UserAlreadyExistsError):
+            await register_user(test_db, user_data)
 
     @pytest.mark.parametrize(
         "duplicate_field,duplicate_value",
@@ -107,8 +105,10 @@ class TestRegisterUser:
                 username="newuser", email=duplicate_value, password="SecurePass123!"
             )
 
-        result = await register_user(test_db, user_data)
-        assert result is None
+        from app.core.exceptions import UserAlreadyExistsError
+
+        with pytest.raises(UserAlreadyExistsError):
+            await register_user(test_db, user_data)
 
     async def test_register_user_hashes_password(self, test_db):
         """Test that password is properly hashed."""
@@ -160,7 +160,8 @@ class TestLoginUser:
 
     async def test_login_user_wrong_password(self, test_db):
         """Test login with wrong password."""
-        # Create user using factory
+        from app.core.exceptions import InvalidCredentialsError
+
         await UserFactory.create_async(
             db=test_db,
             username="testuser",
@@ -168,16 +169,15 @@ class TestLoginUser:
             hashed_password=hash_password("correctpassword"),
         )
 
-        # Login with wrong password
-        result = await login_user(test_db, "testuser", "wrongpassword")
-
-        assert result is None
+        with pytest.raises(InvalidCredentialsError):
+            await login_user(test_db, "testuser", "wrongpassword")
 
     async def test_login_user_nonexistent_username(self, test_db):
         """Test login with non-existent username."""
-        result = await login_user(test_db, "nonexistent", "somepassword")
+        from app.core.exceptions import InvalidCredentialsError
 
-        assert result is None
+        with pytest.raises(InvalidCredentialsError):
+            await login_user(test_db, "nonexistent", "somepassword")
 
 
 @pytest.mark.unit

@@ -20,6 +20,7 @@ from app.core.health_check import (
     format_startup_error,
 )
 from app.core.logging_config import log_config
+from app.core.middleware import CorrelationIDMiddleware, SecurityHeadersMiddleware
 from app.core.settings import CoreConfig, RedisConfig
 from app.health.health_router import router as health_router
 from app.observability.telemetry import init_telemetry
@@ -101,6 +102,9 @@ app.add_middleware(
     allow_methods=["*"],  # ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
     allow_headers=["*"],  # ["Content-Type", "Authorization"]
 )
+
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(CorrelationIDMiddleware)
 
 app.include_router(health_router, prefix="/api/v1/health", tags=["Health"])
 app.include_router(user_router, prefix="/api/v1/user", tags=["User"])

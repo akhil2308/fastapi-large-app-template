@@ -1,13 +1,7 @@
-from datetime import UTC, datetime
-
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
 
 from app.core.database import Base
-
-
-def _utc_now() -> datetime:
-    """Return current UTC datetime with timezone info."""
-    return datetime.now(UTC)
+from app.core.utils import utc_now
 
 
 class Todo(Base):
@@ -17,9 +11,9 @@ class Todo(Base):
     title = Column(String, nullable=False)
     description = Column(Text, nullable=True)
     completed = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=_utc_now)
-    updated_at = Column(DateTime, default=_utc_now, onupdate=_utc_now)
-    deleted_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
     is_deleted = Column(Boolean, default=False)
 
     __tablename__ = "todos"

@@ -76,12 +76,6 @@ async def update_todo_by_todo_id(
     description: str | None = None,
     completed: bool | None = None,
 ) -> Todo | None:
-    # Get existing todo
-    todo_obj = await get_todos_by_todo_id(db, todo_id, user_id)
-    if not todo_obj:
-        return None
-
-    # Build update dictionary
     update_data: dict[str, Any] = {}
     if title is not None:
         update_data["title"] = title
@@ -90,32 +84,24 @@ async def update_todo_by_todo_id(
     if completed is not None:
         update_data["completed"] = completed
 
-    # Perform update
-    await db.execute(
+    if not update_data:
+        return await get_todos_by_todo_id(db, todo_id, user_id)
+
+    result = await db.execute(
         update(Todo)
         .where(Todo.todo_id == todo_id, Todo.user_id == user_id)
         .values(**update_data)
+        .returning(Todo)
     )
     await db.commit()
-
-    # Re-fetch to get updated values
-    result = await db.execute(
-        select(Todo).where(Todo.todo_id == todo_id, Todo.user_id == user_id)
-    )
     return result.scalars().first()
 
 
 async def delete_todo_by_todo_id(db: AsyncSession, todo_id: str, user_id: str) -> bool:
-    # Check if todo exists
-    todo_obj = await get_todos_by_todo_id(db, todo_id, user_id)
-    if not todo_obj:
-        return False
-
-    # Soft delete implementation
-    await db.execute(
+    result = await db.execute(
         update(Todo)
         .where(Todo.todo_id == todo_id, Todo.user_id == user_id)
         .values(is_deleted=True, deleted_at=datetime.now(UTC))
     )
     await db.commit()
-    return True
+    return result.rowcount > 0

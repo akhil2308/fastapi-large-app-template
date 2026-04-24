@@ -62,8 +62,9 @@ The repository follows a **modular, domain-oriented structure** designed for lar
 
 - `app/` — Core FastAPI application
   - Domain modules (`user`, `todo`, `health`)
-  - Core configuration, database, logging
-  - OpenTelemetry observability setup
+  - Core configuration, database, logging (`core/`)
+  - Shared utilities: auth dependency, rate limiter (`utils/`)
+  - OpenTelemetry observability setup (`observability/`)
   - Alembic migrations
   - Application entry point (`main.py`)
 
@@ -287,8 +288,10 @@ logging_config = {
   "message": "Validation Failed",
   "errors": [
     {
-      "field": "task",
-      "message": "Field required"
+      "type": "missing",
+      "loc": ["body", "task"],
+      "msg": "Field required",
+      "input": {}
     }
   ]
 }
@@ -298,13 +301,16 @@ logging_config = {
 ```python
 @app.exception_handler(RequestValidationError)
 async def validation_handler(request: Request, exc: RequestValidationError):
+    errors = [
+        {"type": e.get("type"), "loc": e.get("loc"), "msg": e.get("msg"), "input": e.get("input")}
+        for e in exc.errors()
+    ]
     return JSONResponse(
         status_code=422,
         content={
             "status": "error",
-            "code": 422,
             "message": "Validation Failed",
-            "errors": exc.errors()
+            "errors": errors,
         }
     )
 
@@ -314,9 +320,8 @@ async def http_handler(request: Request, exc: HTTPException):
         status_code=exc.status_code,
         content={
             "status": "error",
-            "code": exc.status_code,
             "message": exc.detail,
-            "errors": getattr(exc, "errors", None)
+            "errors": getattr(exc, "errors", None),
         }
     )
 ```

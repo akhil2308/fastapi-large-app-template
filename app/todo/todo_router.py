@@ -4,9 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.schemas import ApiResponse, PaginatedApiResponse
 from app.core.settings import RateLimitConfig
 from app.todo.todo_crud import delete_todo_by_todo_id, update_todo_by_todo_id
-from app.todo.todo_schema import TodoCreate, TodoUpdate
+from app.todo.todo_schema import Todo, TodoCreate, TodoUpdate
 from app.todo.todo_service import create_todo_service, get_todos_service
 from app.utils.auth_dependency import User, get_current_user
 from app.utils.rate_limiter import user_rate_limiter
@@ -22,6 +23,7 @@ SERVICE = "todo"
     summary="Create a new To-Do",
     status_code=status.HTTP_201_CREATED,
     tags=["Todo"],
+    response_model=ApiResponse[Todo],
     responses={
         429: {"description": "Daily write limit exceeded"},
         500: {"description": "Internal Server Error"},
@@ -37,7 +39,6 @@ async def create_todo(
     Requires 'todo_write' permissions.
     """
     try:
-        assert current_user.user_id is not None
         await user_rate_limiter(
             current_user.user_id, SERVICE, RateLimitConfig.WRITE_PER_MIN
         )
@@ -62,6 +63,7 @@ async def create_todo(
     summary="List all To-Dos",
     status_code=status.HTTP_200_OK,
     tags=["Todo"],
+    response_model=PaginatedApiResponse[Todo],
     responses={
         429: {"description": "Daily read limit exceeded"},
         500: {"description": "Internal Server Error"},
@@ -77,7 +79,6 @@ async def get_todos(
     Retrieve a paginated list of Todo items for the current user.
     """
     try:
-        assert current_user.user_id is not None
         await user_rate_limiter(
             current_user.user_id, SERVICE, RateLimitConfig.READ_PER_MIN
         )
@@ -106,6 +107,7 @@ async def get_todos(
     summary="Update a To-Do",
     status_code=status.HTTP_200_OK,
     tags=["Todo"],
+    response_model=ApiResponse[Todo],
     responses={
         404: {"description": "Todo not found"},
         429: {"description": "Rate limit exceeded"},
@@ -122,7 +124,6 @@ async def update_todo(
     Update an existing Todo item.
     """
     try:
-        assert current_user.user_id is not None
         await user_rate_limiter(
             current_user.user_id, SERVICE, RateLimitConfig.WRITE_PER_MIN
         )
@@ -159,6 +160,7 @@ async def update_todo(
     summary="Delete a To-Do",
     status_code=status.HTTP_200_OK,
     tags=["Todo"],
+    response_model=ApiResponse[None],
     responses={
         404: {"description": "Todo not found"},
         429: {"description": "Rate limit exceeded"},
@@ -174,7 +176,6 @@ async def delete_todo(
     Delete a Todo item (soft delete).
     """
     try:
-        assert current_user.user_id is not None
         await user_rate_limiter(
             current_user.user_id, SERVICE, RateLimitConfig.WRITE_PER_MIN
         )

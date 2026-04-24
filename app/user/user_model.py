@@ -1,13 +1,7 @@
-from datetime import UTC, datetime
-
 from sqlalchemy import Column, DateTime, Integer, String
 
 from app.core.database import Base
-
-
-def _utc_now() -> datetime:
-    """Return current UTC datetime with timezone info."""
-    return datetime.now(UTC)
+from app.core.utils import utc_now
 
 
 class User(Base):
@@ -16,7 +10,7 @@ class User(Base):
     username = Column(String, unique=True, nullable=False)
     email = Column(String, unique=True, nullable=False)
     hashed_password = Column(String, nullable=False)
-    created_at = Column(DateTime, default=_utc_now)
-    updated_at = Column(DateTime, default=_utc_now, onupdate=_utc_now)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
     __tablename__ = "users"

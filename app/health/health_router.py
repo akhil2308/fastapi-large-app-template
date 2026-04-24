@@ -1,6 +1,8 @@
 import logging
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, status
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,7 +13,20 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("/", tags=["Health"], summary="Service Health Check")
+class HealthResponse(BaseModel):
+    status: str
+    service: str
+    database: str | None = None
+    redis: str | None = None
+
+
+@router.get(
+    "/",
+    tags=["Health"],
+    summary="Service Health Check",
+    response_model=HealthResponse,
+    responses={503: {"description": "One or more services are unavailable"}},
+)
 async def status_check(request: Request, db: AsyncSession = Depends(get_db)):
     """
     Health check endpoint to verify that the service is running.
@@ -41,4 +56,9 @@ async def status_check(request: Request, db: AsyncSession = Depends(get_db)):
         health_status["redis"] = "disconnected"
         health_status["status"] = "unhealthy"
 
+    if health_status["status"] == "unhealthy":
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content=health_status,
+        )
     return health_status
