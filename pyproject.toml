@@ -11,6 +11,7 @@ dependencies = [
     "SQLAlchemy ~= 2.0.44",
     "alembic ~= 1.17.1",
     "asyncpg ~= 0.30.0",
+    "greenlet >= 3.0.0",
     "psycopg2-binary ~= 2.9.11",
     "redis ~= 6.0.0",
     "PyJWT ~= 2.9.0",
