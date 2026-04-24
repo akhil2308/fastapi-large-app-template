@@ -1,15 +1,8 @@
 import os
 
 from decouple import Csv, config
-from dotenv import load_dotenv
 
 from app.core.enums import Environment
-
-# quote_plus can be used to encode the password in the connection string (to not have issues with special characters)
-# from urllib.parse import quote_plus
-
-# loads envs in .env file
-load_dotenv()
 
 
 # APP CONFIGURATION
@@ -120,8 +113,3 @@ class RateLimitConfig:
     READ_PER_MIN = config("READ_RATE_LIMITING_PER_MIN", default=60, cast=int)
     WRITE_PER_MIN = config("WRITE_RATE_LIMITING_PER_MIN", default=10, cast=int)
 
-
-# OPENAI SETTINGS
-class OpenAIConfig:
-    API_KEY = os.getenv("OPENAI_API_KEY")
-    MODEL = os.getenv("OPENAI_API_MODEL", "gpt-4o-mini")

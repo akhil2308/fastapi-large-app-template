@@ -30,3 +30,19 @@ class UserCreateResponse(BaseModel):
 class UserLoginRequest(BaseModel):
     username: str
     password: str
+
+
+class LoginResponseData(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+
+
+class TokenPair(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
