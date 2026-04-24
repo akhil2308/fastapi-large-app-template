@@ -1,4 +1,3 @@
-import uuid
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from logging import getLogger
@@ -11,10 +10,7 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from fastapi_limiter import FastAPILimiter  # type: ignore[attr-defined]
 from redis.asyncio import Redis
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import Response
 
-from app.core.context import correlation_id_ctx
 from app.core.database import AsyncSessionLocal, engine
 from app.core.health_check import (
     DatabaseConnectionError,
@@ -24,6 +20,7 @@ from app.core.health_check import (
     format_startup_error,
 )
 from app.core.logging_config import log_config
+from app.core.middleware import CorrelationIDMiddleware, SecurityHeadersMiddleware
 from app.core.settings import CoreConfig, RedisConfig
 from app.health.health_router import router as health_router
 from app.observability.telemetry import init_telemetry
@@ -33,29 +30,6 @@ from app.user.user_router import router as user_router
 logger = getLogger(__name__)
 
 dictConfig(log_config)
-
-
-class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    """Add security headers to every response."""
-
-    async def dispatch(self, request: Request, call_next) -> Response:
-        response = await call_next(request)
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
-        response.headers["X-XSS-Protection"] = "1; mode=block"
-        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        return response
-
-
-class CorrelationIDMiddleware(BaseHTTPMiddleware):
-    """Read or generate a correlation ID and echo it on the response."""
-
-    async def dispatch(self, request: Request, call_next) -> Response:
-        request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
-        correlation_id_ctx.set(request_id)
-        response = await call_next(request)
-        response.headers["X-Request-ID"] = request_id
-        return response
 
 
 @asynccontextmanager
