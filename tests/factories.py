@@ -11,14 +11,14 @@ import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
-from app.todo.todo_schema import TodoCreate, TodoUpdate
-from app.user.user_schema import UserCreateRequest
+from app.schemas.todo_schema import TodoCreate, TodoUpdate
+from app.schemas.user_schema import UserCreateRequest
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
-    from app.todo.todo_model import Todo
-    from app.user.user_model import User
+    from app.models.todo_model import Todo
+    from app.models.user_model import User
 
 
 # =============================================================================
@@ -69,8 +69,8 @@ class UserFactory:
         Returns:
             User model instance
         """
-        from app.user.user_model import User
-        from app.user.user_service import hash_password
+        from app.models.user_model import User
+        from app.services.user_service import hash_password
 
         data = cls.build(**kwargs)
         user = User(
@@ -209,7 +209,7 @@ class TodoFactory:
         Returns:
             Todo model instance
         """
-        from app.todo.todo_model import Todo
+        from app.models.todo_model import Todo
 
         data = cls.build(user_id=user_id, **kwargs)
         todo = Todo(
@@ -251,7 +251,7 @@ class TodoFactory:
         Returns:
             List of Todo model instances
         """
-        from app.todo.todo_model import Todo
+        from app.models.todo_model import Todo
 
         todos_data = cls.create_batch(user_id=user_id, count=count, **kwargs)
         todos = []
@@ -354,7 +354,7 @@ class TokenFactory:
         """Create a valid JWT access token."""
         from datetime import timedelta
 
-        from app.user.user_auth import create_access_token
+        from app.core.auth import create_access_token
 
         user_id = user_id or str(uuid.uuid4())
         expires_delta = expires_delta or 1800  # 30 minutes
@@ -369,7 +369,7 @@ class TokenFactory:
         """Create an expired JWT token."""
         from datetime import timedelta
 
-        from app.user.user_auth import create_access_token
+        from app.core.auth import create_access_token
 
         user_id = user_id or str(uuid.uuid4())
 

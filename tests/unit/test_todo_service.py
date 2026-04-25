@@ -10,8 +10,8 @@ Tests cover:
 
 import pytest
 
-from app.todo.todo_schema import TodoCreate
-from app.todo.todo_service import create_todo_service, get_todos_service
+from app.schemas.todo_schema import TodoCreate
+from app.services.todo_service import create_todo_service, get_todos_service
 from tests.factories import TodoFactory, UserFactory
 
 
@@ -237,7 +237,7 @@ class TestTodoSchema:
 
     def test_todo_update_partial(self):
         """Test partial update with TodoUpdate."""
-        from app.todo.todo_schema import TodoUpdate
+        from app.schemas.todo_schema import TodoUpdate
 
         # Partial update - only title
         update = TodoUpdate(title="New Title")
@@ -247,7 +247,7 @@ class TestTodoSchema:
 
     def test_todo_update_complete(self):
         """Test complete update with TodoUpdate."""
-        from app.todo.todo_schema import TodoUpdate
+        from app.schemas.todo_schema import TodoUpdate
 
         update = TodoUpdate(
             title="New Title", description="New Description", completed=True

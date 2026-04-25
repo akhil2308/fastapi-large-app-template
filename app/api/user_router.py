@@ -3,18 +3,18 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth import create_access_token
 from app.core.database import get_db
 from app.core.exceptions import InvalidCredentialsError, UserAlreadyExistsError
 from app.core.schemas import ApiResponse
 from app.core.settings import RateLimitConfig
-from app.user.user_auth import create_access_token
-from app.user.user_schema import (
+from app.schemas.user_schema import (
     LoginResponseData,
     UserCreateRequest,
     UserCreateResponse,
     UserLoginRequest,
 )
-from app.user.user_service import login_user, register_user
+from app.services.user_service import login_user, register_user
 from app.utils.rate_limiter import ip_rate_limiter
 
 logger = logging.getLogger(__name__)
@@ -55,7 +55,9 @@ async def register(
             "data": user,
         }
     except UserAlreadyExistsError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+        ) from e
     except HTTPException:
         raise
     except Exception as e:
@@ -98,7 +100,9 @@ async def login(
             "data": {"access_token": access_token, "token_type": "bearer"},
         }
     except InvalidCredentialsError as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e)
+        ) from e
     except HTTPException:
         raise
     except Exception as e:

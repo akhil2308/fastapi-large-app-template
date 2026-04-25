@@ -11,6 +11,9 @@ from fastapi.responses import JSONResponse
 from fastapi_limiter import FastAPILimiter  # type: ignore[attr-defined]
 from redis.asyncio import Redis
 
+from app.api.health_router import router as health_router
+from app.api.todo_router import router as todo_router
+from app.api.user_router import router as user_router
 from app.core.database import AsyncSessionLocal, engine
 from app.core.health_check import (
     DatabaseConnectionError,
@@ -22,10 +25,7 @@ from app.core.health_check import (
 from app.core.logging_config import log_config
 from app.core.middleware import CorrelationIDMiddleware, SecurityHeadersMiddleware
 from app.core.settings import CoreConfig, RedisConfig
-from app.health.health_router import router as health_router
 from app.observability.telemetry import init_telemetry
-from app.todo.todo_router import router as todo_router
-from app.user.user_router import router as user_router
 
 logger = getLogger(__name__)
 

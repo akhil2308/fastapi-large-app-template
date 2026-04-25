@@ -11,8 +11,8 @@ import pytest
 from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 
-from app.user.user_auth import create_access_token, decode_access_token
-from app.user.user_service import hash_password, verify_password
+from app.core.auth import create_access_token, decode_access_token
+from app.services.user_service import hash_password, verify_password
 
 
 @pytest.mark.unit

@@ -13,7 +13,11 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-class HealthResponse(BaseModel):
+class LivenessResponse(BaseModel):
+    status: str
+
+
+class DetailedHealthResponse(BaseModel):
     status: str
     service: str
     database: str | None = None
@@ -23,18 +27,25 @@ class HealthResponse(BaseModel):
 @router.get(
     "/",
     tags=["Health"],
-    summary="Service Health Check",
-    response_model=HealthResponse,
+    summary="Liveness Check",
+    response_model=LivenessResponse,
+)
+async def liveness():
+    """Lightweight liveness probe — confirms the process is running."""
+    return {"status": "ok"}
+
+
+@router.get(
+    "/detailed",
+    tags=["Health"],
+    summary="Detailed Health Check",
+    response_model=DetailedHealthResponse,
     responses={503: {"description": "One or more services are unavailable"}},
 )
-async def status_check(request: Request, db: AsyncSession = Depends(get_db)):
-    """
-    Health check endpoint to verify that the service is running.
-    Checks connectivity to Redis and PostgreSQL.
-    """
+async def detailed_health_check(request: Request, db: AsyncSession = Depends(get_db)):
+    """Readiness probe — checks connectivity to PostgreSQL and Redis."""
     health_status = {"status": "healthy", "service": "up and running"}
 
-    # Check database connectivity
     try:
         await db.execute(text("SELECT 1"))
         health_status["database"] = "connected"
@@ -43,7 +54,6 @@ async def status_check(request: Request, db: AsyncSession = Depends(get_db)):
         health_status["database"] = "disconnected"
         health_status["status"] = "unhealthy"
 
-    # Check Redis connectivity
     try:
         redis = request.app.state.redis if hasattr(request.app.state, "redis") else None
         if redis:

@@ -14,9 +14,9 @@ from unittest.mock import patch
 
 import pytest
 
-from app.user.user_auth import create_access_token, decode_access_token
-from app.user.user_model import User
-from app.utils.auth_dependency import get_current_user
+from app.api.deps import get_current_user
+from app.core.auth import create_access_token, decode_access_token
+from app.models.user_model import User
 
 
 @pytest.mark.unit
@@ -102,7 +102,7 @@ class TestDecodeAccessToken:
         # Create a token that expires immediately
 
         # Manually create an expired token
-        with patch("app.user.user_auth.datetime") as mock_datetime:
+        with patch("app.core.auth.datetime") as mock_datetime:
             # Set time to past
             mock_datetime.now.return_value = datetime(2020, 1, 1, tzinfo=UTC)
             mock_datetime.timedelta = timedelta
@@ -203,7 +203,7 @@ class TestPasswordHashing:
 
     def test_hash_password_returns_string(self):
         """Test that hash_password returns a string."""
-        from app.user.user_service import hash_password
+        from app.services.user_service import hash_password
 
         hashed = hash_password("testpassword123")
         assert isinstance(hashed, str)
@@ -211,7 +211,7 @@ class TestPasswordHashing:
 
     def test_hash_password_different_hashes(self):
         """Test that same password produces different hashes (salt)."""
-        from app.user.user_service import hash_password
+        from app.services.user_service import hash_password
 
         hash1 = hash_password("testpassword123")
         hash2 = hash_password("testpassword123")
@@ -221,7 +221,7 @@ class TestPasswordHashing:
 
     def test_verify_password_correct(self):
         """Test verifying correct password."""
-        from app.user.user_service import hash_password, verify_password
+        from app.services.user_service import hash_password, verify_password
 
         password = "testpassword123"
         hashed = hash_password(password)
@@ -230,7 +230,7 @@ class TestPasswordHashing:
 
     def test_verify_password_incorrect(self):
         """Test verifying incorrect password."""
-        from app.user.user_service import hash_password, verify_password
+        from app.services.user_service import hash_password, verify_password
 
         hashed = hash_password("testpassword123")
 
@@ -238,7 +238,7 @@ class TestPasswordHashing:
 
     def test_verify_password_empty(self):
         """Test verifying empty password."""
-        from app.user.user_service import hash_password, verify_password
+        from app.services.user_service import hash_password, verify_password
 
         hashed = hash_password("testpassword123")
 
