@@ -156,7 +156,7 @@ ci: check-env lint format typecheck test
 # =============================================================================
 clean:
 	@echo "Cleaning generated files and caches..."
-	@rm -rf .mypy_cache .ruff_cache .pytest_cache
+	@rm -rf .mypy_cache .ruff_cache .pytest_cache .hypothesis
 	@find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	@find . -type f -name "*.pyc" -delete 2>/dev/null || true
 	@find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
