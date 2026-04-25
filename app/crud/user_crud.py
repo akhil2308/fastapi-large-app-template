@@ -3,7 +3,7 @@ import uuid
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.user.user_model import User
+from app.models.user_model import User
 
 
 async def get_user_by_username(db: AsyncSession, username: str) -> User | None:

@@ -12,7 +12,7 @@ import uuid
 import pytest
 from httpx import AsyncClient
 
-from app.user.user_auth import create_access_token
+from app.core.auth import create_access_token
 from tests.factories import (
     TodoCreateRequestFactory,
     TodoFactory,

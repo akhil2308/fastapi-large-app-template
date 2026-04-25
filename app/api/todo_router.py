@@ -3,13 +3,13 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import User, get_current_user
 from app.core.database import get_db
 from app.core.schemas import ApiResponse, PaginatedApiResponse
 from app.core.settings import RateLimitConfig
-from app.todo.todo_crud import delete_todo_by_todo_id, update_todo_by_todo_id
-from app.todo.todo_schema import Todo, TodoCreate, TodoUpdate
-from app.todo.todo_service import create_todo_service, get_todos_service
-from app.utils.auth_dependency import User, get_current_user
+from app.crud.todo_crud import delete_todo_by_todo_id, update_todo_by_todo_id
+from app.schemas.todo_schema import Todo, TodoCreate, TodoUpdate
+from app.services.todo_service import create_todo_service, get_todos_service
 from app.utils.rate_limiter import user_rate_limiter
 
 logger = logging.getLogger(__name__)

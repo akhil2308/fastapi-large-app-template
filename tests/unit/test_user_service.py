@@ -10,8 +10,8 @@ Tests cover:
 
 import pytest
 
-from app.user.user_schema import UserCreateRequest
-from app.user.user_service import (
+from app.schemas.user_schema import UserCreateRequest
+from app.services.user_service import (
     hash_password,
     login_user,
     register_user,
@@ -124,7 +124,7 @@ class TestRegisterUser:
 
         # Verify password is hashed by checking the database model directly
         # The response schema doesn't expose hashed_password for security
-        from app.user.user_crud import get_user_by_username
+        from app.crud.user_crud import get_user_by_username
 
         user_model = await get_user_by_username(test_db, "newuser")
         assert user_model is not None
@@ -188,7 +188,7 @@ class TestPasswordValidation:
         """Test password must be at least 8 characters."""
         from pydantic import ValidationError
 
-        from app.user.user_schema import UserCreateRequest
+        from app.schemas.user_schema import UserCreateRequest
 
         with pytest.raises(ValidationError):
             UserCreateRequest(
@@ -199,7 +199,7 @@ class TestPasswordValidation:
         """Test password must not exceed 128 characters."""
         from pydantic import ValidationError
 
-        from app.user.user_schema import UserCreateRequest
+        from app.schemas.user_schema import UserCreateRequest
 
         with pytest.raises(ValidationError):
             UserCreateRequest(
@@ -208,7 +208,7 @@ class TestPasswordValidation:
 
     def test_valid_password(self):
         """Test valid password passes validation."""
-        from app.user.user_schema import UserCreateRequest
+        from app.schemas.user_schema import UserCreateRequest
 
         user = UserCreateRequest(
             username="testuser", email="test@example.com", password="ValidPass123!"
@@ -223,7 +223,7 @@ class TestEmailValidation:
 
     def test_valid_email(self):
         """Test valid email passes validation."""
-        from app.user.user_schema import UserCreateRequest
+        from app.schemas.user_schema import UserCreateRequest
 
         user = UserCreateRequest(
             username="testuser", email="test@example.com", password="ValidPass123!"
@@ -235,7 +235,7 @@ class TestEmailValidation:
         """Test invalid email fails validation."""
         from pydantic import ValidationError
 
-        from app.user.user_schema import UserCreateRequest
+        from app.schemas.user_schema import UserCreateRequest
 
         with pytest.raises(ValidationError):
             UserCreateRequest(

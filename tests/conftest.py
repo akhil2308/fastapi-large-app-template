@@ -21,10 +21,10 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+from app.core.auth import create_access_token
 from app.core.database import Base
 from app.main import app as main_app
-from app.user.user_auth import create_access_token
-from app.user.user_model import User
+from app.models.user_model import User
 from tests.factories import (
     TodoFactory,
     TokenFactory,

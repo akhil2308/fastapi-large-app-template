@@ -6,7 +6,7 @@ from typing import Any
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.todo.todo_model import Todo
+from app.models.todo_model import Todo
 
 
 async def create_todo(

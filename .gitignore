@@ -21,6 +21,7 @@ lib64/
 site-packages/
 .python-version
 poetry.lock  # Only ignore if you're not using Poetry
+.hypothesis/
 
 # IDE/Editor
 .vscode/

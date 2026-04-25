@@ -2,12 +2,12 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.todo.todo_crud import (
+from app.crud.todo_crud import (
     create_todo,
     get_todos_by_page_number,
     get_todos_total_size,
 )
-from app.todo.todo_schema import Todo, TodoCreate
+from app.schemas.todo_schema import Todo, TodoCreate
 
 
 async def create_todo_service(

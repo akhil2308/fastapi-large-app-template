@@ -12,7 +12,7 @@ import uuid
 import pytest
 from httpx import AsyncClient
 
-from app.user.user_auth import create_access_token
+from app.core.auth import create_access_token
 from tests.factories import TokenFactory, UserFactory
 
 
@@ -222,7 +222,7 @@ class TestHealthCheck:
 
     async def test_health_check(self, client: AsyncClient):
         """Test health check returns healthy status."""
-        response = await client.get("/api/v1/health/")
+        response = await client.get("/api/v1/health/detailed")
 
         assert response.status_code == 200
         data = response.json()

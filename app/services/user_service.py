@@ -2,13 +2,13 @@ from passlib.context import CryptContext
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import InvalidCredentialsError, UserAlreadyExistsError
-from app.user.user_crud import (
+from app.crud.user_crud import (
     create_user,
     get_user_by_username,
     get_user_by_username_or_email,
 )
-from app.user.user_model import User
-from app.user.user_schema import UserCreateRequest, UserCreateResponse
+from app.models.user_model import User
+from app.schemas.user_schema import UserCreateRequest, UserCreateResponse
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -41,6 +41,6 @@ async def register_user(
 
 async def login_user(db: AsyncSession, username: str, password: str) -> User:
     user = await get_user_by_username(db, username)
-    if not user or user.hashed_password is None or not verify_password(password, user.hashed_password):
+    if not user or not verify_password(password, user.hashed_password):
         raise InvalidCredentialsError("Invalid credentials")
     return user
