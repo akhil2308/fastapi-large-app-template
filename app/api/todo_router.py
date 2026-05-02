@@ -7,9 +7,13 @@ from app.api.deps import User, get_current_user
 from app.core.database import get_db
 from app.core.schemas import ApiResponse, PaginatedApiResponse
 from app.core.settings import RateLimitConfig
-from app.crud.todo_crud import delete_todo_by_todo_id, update_todo_by_todo_id
 from app.schemas.todo_schema import Todo, TodoCreate, TodoUpdate
-from app.services.todo_service import create_todo_service, get_todos_service
+from app.services.todo_service import (
+    create_todo_service,
+    delete_todo_service,
+    get_todos_service,
+    update_todo_service,
+)
 from app.utils.rate_limiter import user_rate_limiter
 
 logger = logging.getLogger(__name__)
@@ -127,13 +131,8 @@ async def update_todo(
         await user_rate_limiter(
             current_user.user_id, SERVICE, RateLimitConfig.WRITE_PER_MIN
         )
-        updated_todo = await update_todo_by_todo_id(
-            db,
-            todo_id,
-            current_user.user_id,
-            title=body.title,
-            description=body.description,
-            completed=body.completed,
+        updated_todo = await update_todo_service(
+            todo_id, current_user.user_id, body, db
         )
         if not updated_todo:
             raise HTTPException(
@@ -179,7 +178,7 @@ async def delete_todo(
         await user_rate_limiter(
             current_user.user_id, SERVICE, RateLimitConfig.WRITE_PER_MIN
         )
-        deleted = await delete_todo_by_todo_id(db, todo_id, current_user.user_id)
+        deleted = await delete_todo_service(todo_id, current_user.user_id, db)
         if not deleted:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

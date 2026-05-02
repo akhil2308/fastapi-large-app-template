@@ -85,7 +85,12 @@ class JWTConfig:
     if not SECRET_KEY:
         raise ValueError("JWT_SECRET_KEY environment variable must be set")
     ALGORITHM = config("JWT_ALGORITHM", default="HS256")
-    ACCESS_TOKEN_EXPIRE_MIN = config("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", default=30, cast=int)
+    ACCESS_TOKEN_EXPIRE_MIN = config(
+        "JWT_ACCESS_TOKEN_EXPIRE_MINUTES", default=30, cast=int
+    )
+    REFRESH_TOKEN_EXPIRE_DAYS = config(
+        "JWT_REFRESH_TOKEN_EXPIRE_DAYS", default=7, cast=int
+    )
 
 
 # REDIS SETTINGS
@@ -110,4 +115,3 @@ class RedisConfig:
 class RateLimitConfig:
     READ_PER_MIN = config("READ_RATE_LIMITING_PER_MIN", default=60, cast=int)
     WRITE_PER_MIN = config("WRITE_RATE_LIMITING_PER_MIN", default=10, cast=int)
-

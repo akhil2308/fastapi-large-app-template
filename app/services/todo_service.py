@@ -4,10 +4,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.todo_crud import (
     create_todo,
+    delete_todo_by_todo_id,
     get_todos_by_page_number,
     get_todos_total_size,
+    update_todo_by_todo_id,
 )
-from app.schemas.todo_schema import Todo, TodoCreate
+from app.schemas.todo_schema import Todo, TodoCreate, TodoUpdate
 
 
 async def create_todo_service(
@@ -30,3 +32,21 @@ async def get_todos_service(
         "page_size": page_size,
         "total_pages": total_pages,
     }
+
+
+async def update_todo_service(
+    todo_id: str, user_id: str, todo_data: TodoUpdate, db: AsyncSession
+) -> Todo | None:
+    updated = await update_todo_by_todo_id(
+        db,
+        todo_id,
+        user_id,
+        title=todo_data.title,
+        description=todo_data.description,
+        completed=todo_data.completed,
+    )
+    return Todo.model_validate(updated) if updated else None
+
+
+async def delete_todo_service(todo_id: str, user_id: str, db: AsyncSession) -> bool:
+    return await delete_todo_by_todo_id(db, todo_id, user_id)
