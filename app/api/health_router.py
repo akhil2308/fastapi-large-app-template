@@ -2,26 +2,15 @@ import logging
 
 from fastapi import APIRouter, Depends, Request, status
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.schemas.health_schema import DetailedHealthResponse, LivenessResponse
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-
-class LivenessResponse(BaseModel):
-    status: str
-
-
-class DetailedHealthResponse(BaseModel):
-    status: str
-    service: str
-    database: str | None = None
-    redis: str | None = None
 
 
 @router.get(
