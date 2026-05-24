@@ -1,0 +1,23 @@
+# Service — fastapi-app
+# Exposes the Deployment as a stable ClusterIP endpoint inside the cluster.
+# Traffic from an Ingress controller (or another service) hits port 80 here
+# and is forwarded to port 8000 on the selected pods.
+# Change type to LoadBalancer or add an Ingress resource for external access.
+apiVersion: v1
+kind: Service
+metadata:
+  name: fastapi-app
+  namespace: fastapi-app
+  labels:
+    app: fastapi-app
+    component: app
+spec:
+  type: ClusterIP  # Internal-only; not reachable from outside the cluster.
+  selector:
+    app: fastapi-app
+    component: app
+  ports:
+    - name: http
+      port: 80          # Port exposed on the ClusterIP
+      targetPort: 8000  # Port the container listens on (Gunicorn)
+      protocol: TCP

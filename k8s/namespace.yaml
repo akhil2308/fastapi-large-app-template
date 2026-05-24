@@ -1,0 +1,11 @@
+# Namespace — fastapi-app
+# Isolates all application resources (Deployments, Services, Secrets, etc.)
+# into a dedicated namespace to prevent name collisions with other workloads
+# and to simplify RBAC and network policy scoping.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: fastapi-app
+  labels:
+    app: fastapi-app
+    component: namespace

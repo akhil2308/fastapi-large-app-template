@@ -1,0 +1,61 @@
+# Job — fastapi-app-migration
+# Runs Alembic database migrations to bring the schema to the latest revision
+# before (or alongside) a new Deployment rollout.
+#
+# Usage:
+#   kubectl apply -f k8s/jobs/migration.yaml
+#
+# Design notes:
+#   - restartPolicy=OnFailure retries the container on non-zero exit without
+#     creating a new pod, preserving logs for the current attempt.
+#   - ttlSecondsAfterFinished=120 cleans up the Job object 2 minutes after
+#     completion (success or failure) to avoid cluttering the namespace.
+#   - The same image tag used by the Deployment ensures migration code and
+#     application code are always in sync.
+# Replace `your-registry/fastapi-large-app-template:latest` with your image.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: fastapi-app-migration
+  namespace: fastapi-app
+  labels:
+    app: fastapi-app
+    component: migration
+spec:
+  # Automatically delete the Job resource 2 minutes after it finishes.
+  ttlSecondsAfterFinished: 120
+  template:
+    metadata:
+      labels:
+        app: fastapi-app
+        component: migration
+    spec:
+      # Retry the container on failure; do not restart the entire pod.
+      restartPolicy: OnFailure
+      containers:
+        - name: migration
+          # TODO: pin to the same tag as the Deployment image.
+          image: your-registry/fastapi-large-app-template:latest
+          imagePullPolicy: Always
+          # Run Alembic upgrade to the latest migration revision.
+          command:
+            - "alembic"
+            - "-c"
+            - "app/alembic.ini"
+            - "upgrade"
+            - "head"
+          # Migrations need DB credentials from the Secret and host config
+          # from the ConfigMap (same sources as the app container).
+          envFrom:
+            - configMapRef:
+                name: fastapi-app-config
+            - secretRef:
+                name: fastapi-app-secret
+          # Migration jobs are short-lived; lighter limits than the app pod.
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"

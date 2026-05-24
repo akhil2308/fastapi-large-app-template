@@ -1,0 +1,114 @@
+# Deployment — fastapi-app
+# Runs the FastAPI application behind Gunicorn+Uvicorn.
+# Key design choices:
+#   - RollingUpdate with maxUnavailable=0 guarantees zero-downtime deploys.
+#   - Soft pod anti-affinity spreads replicas across nodes for fault tolerance.
+#   - Three probe tiers (startup → readiness → liveness) prevent premature
+#     traffic routing and catch hung workers without killing slow-starting pods.
+#   - preStop sleep gives kube-proxy time to remove the pod from iptables rules
+#     before the process exits, avoiding dropped connections during rollouts.
+# Replace `your-registry/fastapi-large-app-template:latest` with your image.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fastapi-app
+  namespace: fastapi-app
+  labels:
+    app: fastapi-app
+    component: app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: fastapi-app
+      component: app
+  # Zero-downtime rolling update: spin up one extra pod before removing any.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1        # At most 1 extra pod above desired count during rollout
+      maxUnavailable: 0  # Never reduce available pods below desired count
+  template:
+    metadata:
+      labels:
+        app: fastapi-app
+        component: app
+    spec:
+      # Allow up to 60 s for in-flight requests to drain after SIGTERM.
+      terminationGracePeriodSeconds: 60
+      affinity:
+        # Prefer scheduling pods on different nodes to survive node failures.
+        # "preferred" (soft) rather than "required" so scheduling never blocks.
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - fastapi-app
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: fastapi-app
+          # TODO: replace with your registry and pinned tag before deploying.
+          image: your-registry/fastapi-large-app-template:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          # Inject non-sensitive config then sensitive credentials.
+          envFrom:
+            - configMapRef:
+                name: fastapi-app-config
+            - secretRef:
+                name: fastapi-app-secret
+          resources:
+            # requests — used by the scheduler for bin-packing decisions.
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            # limits — hard caps; exceeding memory triggers OOMKill.
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          # startupProbe — gives the app up to 300 s (30 × 10 s) to become
+          # healthy before liveness/readiness probes take over.  Prevents
+          # premature restarts during slow cold starts or DB migrations.
+          startupProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 30
+            successThreshold: 1
+            timeoutSeconds: 5
+          # readinessProbe — gates traffic routing.  Pod is removed from the
+          # Service endpoints on failure and re-added on recovery.
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8000
+            periodSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+            timeoutSeconds: 3
+          # livenessProbe — restarts the container if the health endpoint stops
+          # responding, catching deadlocked workers that readiness misses.
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8000
+            periodSeconds: 10
+            failureThreshold: 5
+            successThreshold: 1
+            timeoutSeconds: 5
+          lifecycle:
+            # Delay shutdown by 5 s so kube-proxy can propagate endpoint removal
+            # before the process stops accepting connections.
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 5"]

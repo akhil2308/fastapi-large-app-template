@@ -1,0 +1,91 @@
+# =============================================================================
+# Stage 1 — builder
+# Installs system build tools, uv, and all Python dependencies into an
+# isolated virtual environment at /opt/venv.  Nothing from this stage except
+# the venv is carried into the final image, keeping the runtime layer small.
+# =============================================================================
+FROM python:3.11-slim AS builder
+
+# Install C build tools required by some Python packages (e.g. psycopg2-binary
+# fallback, cryptography).  The apt cache is removed immediately to avoid
+# bloating the layer.
+RUN apt-get update && \
+    apt-get install -y python3-dev build-essential --no-install-recommends && \
+    apt-get clean && rm -rf /tmp/* /var/tmp/* && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+
+# Install uv — a fast Rust-based Python package manager used instead of pip
+# for dependency resolution and installation.
+ADD https://astral.sh/uv/install.sh /uv-installer.sh
+RUN sh /uv-installer.sh && rm /uv-installer.sh
+ENV PATH="/root/.local/bin/:$PATH"
+
+# Copy dependency manifests first so Docker can cache this layer independently
+# from source changes.  The lock file guarantees reproducible installs.
+COPY pyproject.toml uv.lock ./
+
+# Create the virtualenv and bootstrap pip/setuptools/wheel inside it.
+RUN uv venv /opt/venv && \
+    uv pip install --python /opt/venv/bin/python --upgrade pip setuptools wheel
+
+# Copy the full source tree, then install the project package (and all its
+# extras/optional dependencies declared in pyproject.toml).
+COPY . .
+
+RUN uv pip install --python /opt/venv/bin/python .
+
+
+# =============================================================================
+# Stage 2 — runtime
+# Minimal image that contains only the pre-built venv and application source.
+# Runs as a non-root user for security hardening.
+# =============================================================================
+FROM python:3.11-slim AS runtime
+
+# Create a dedicated non-root user (uid 1000) to run the application.
+# --no-log-init avoids a known Docker logging issue with large /etc/passwd.
+RUN useradd --create-home --no-log-init --uid 1000 appuser
+
+# Import only the compiled venv from the builder — no compilers or build tools
+# are present in this stage.
+COPY --from=builder /opt/venv /opt/venv
+
+# Copy application source and startup script with correct ownership so the
+# non-root user can read them.
+COPY --chown=appuser:appuser app/           /app/app/
+COPY --chown=appuser:appuser run.sh         /app/run.sh
+COPY --chown=appuser:appuser pyproject.toml /app/pyproject.toml
+
+WORKDIR /app
+
+# Prepend the venv bin directory so all installed executables (gunicorn, etc.)
+# are resolved without activating the virtualenv explicitly.
+ENV PATH="/opt/venv/bin:$PATH"
+# Prevent Python from writing .pyc files to disk.
+ENV PYTHONDONTWRITEBYTECODE=1
+# Force stdout/stderr to be unbuffered so logs appear immediately.
+ENV PYTHONUNBUFFERED=1
+# Allow absolute imports rooted at /app (e.g. `from app.main import app`).
+ENV PYTHONPATH=/app
+
+RUN chmod +x /app/run.sh
+
+# Drop privileges — the container process runs as appuser, not root.
+USER appuser
+
+EXPOSE 8000
+
+# Serve with Gunicorn using the UvicornWorker class so the ASGI app gets
+# async I/O support.  A single worker is the safe default for Kubernetes
+# deployments where horizontal scaling is handled at the pod level.
+# Graceful timeout gives in-flight requests 45 s to complete before shutdown.
+CMD ["gunicorn", \
+     "--workers", "1", \
+     "--worker-class", "uvicorn.workers.UvicornWorker", \
+     "--bind", "0.0.0.0:8000", \
+     "--graceful-timeout", "45", \
+     "--log-level", "info", \
+     "--access-logfile", "-", \
+     "--error-logfile", "-", \
+     "app.main:app"]
