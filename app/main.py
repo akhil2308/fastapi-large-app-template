@@ -79,6 +79,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         # shutdown
         await app.state.redis.close()
         await FastAPILimiter.close()
+        await engine.dispose()
 
 
 app = FastAPI(

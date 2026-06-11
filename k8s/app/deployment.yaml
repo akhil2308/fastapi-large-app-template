@@ -79,28 +79,28 @@ spec:
           # premature restarts during slow cold starts or DB migrations.
           startupProbe:
             httpGet:
-              path: /api/v1/health
+              path: /api/v1/health/
               port: 8000
             initialDelaySeconds: 10
             periodSeconds: 10
             failureThreshold: 30
             successThreshold: 1
             timeoutSeconds: 5
-          # readinessProbe — gates traffic routing.  Pod is removed from the
-          # Service endpoints on failure and re-added on recovery.
+          # readinessProbe — gates traffic routing.  Uses the detailed endpoint
+          # so pods with dead DB/Redis connections are taken out of rotation.
           readinessProbe:
             httpGet:
-              path: /api/v1/health
+              path: /api/v1/health/detailed
               port: 8000
             periodSeconds: 5
             failureThreshold: 3
             successThreshold: 1
             timeoutSeconds: 3
-          # livenessProbe — restarts the container if the health endpoint stops
-          # responding, catching deadlocked workers that readiness misses.
+          # livenessProbe — restarts the container if the process is hung.
+          # Uses the lightweight endpoint — never restart due to DB being down.
           livenessProbe:
             httpGet:
-              path: /api/v1/health
+              path: /api/v1/health/
               port: 8000
             periodSeconds: 10
             failureThreshold: 5

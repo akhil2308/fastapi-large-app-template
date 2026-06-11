@@ -19,7 +19,7 @@ def create_access_token(
         expire = datetime.now(UTC) + timedelta(
             minutes=JWTConfig.ACCESS_TOKEN_EXPIRE_MIN
         )
-    to_encode.update({"exp": expire, "jti": str(uuid.uuid4())})
+    to_encode.update({"exp": expire, "jti": str(uuid.uuid4()), "type": "access"})
     encoded_jwt: str = jwt.encode(
         to_encode, JWTConfig.SECRET_KEY, algorithm=JWTConfig.ALGORITHM
     )

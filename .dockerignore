@@ -1,0 +1,32 @@
+# Secrets and local config — never bake into images
+.env
+.env.*
+!.env.example
+
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Python caches and virtual envs
+__pycache__
+*.py[cod]
+*.pyo
+*.pyd
+.venv
+venv
+env
+
+# Tests and docs — not needed at runtime
+tests/
+docs/
+plans/
+
+# k8s manifests — not part of the app
+k8s/
+
+# Editor and OS noise
+.idea
+.vscode
+*.swp
+.DS_Store

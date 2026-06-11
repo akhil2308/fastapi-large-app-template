@@ -1,8 +1,10 @@
 import uuid
 
 from sqlalchemy import or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import UserAlreadyExistsError
 from app.models.user_model import User
 
 
@@ -34,6 +36,10 @@ async def create_user(
         hashed_password=hashed_password,
     )
     db.add(user)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError as err:
+        await db.rollback()
+        raise UserAlreadyExistsError("Username or email already exists") from err
     await db.refresh(user)
     return user

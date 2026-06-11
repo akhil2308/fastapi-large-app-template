@@ -13,9 +13,8 @@ metadata:
     component: app
 data:
   # ── General ──────────────────────────────────────────────────────────────
-  ENV: "production"
+  ENV: "prod"
   LOG_LEVEL: "INFO"
-  APP_PORT: "8000"
 
   # ── OpenTelemetry (tracing / metrics export) ──────────────────────────────
   # Set OTEL_EXPORTER_OTLP_ENDPOINT to the collector URL (e.g. http://otel-collector:4317).
