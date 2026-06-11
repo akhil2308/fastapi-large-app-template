@@ -103,10 +103,12 @@ async def client(test_db: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
     main_app.dependency_overrides[get_db] = override_get_db
 
-    # Mock Redis for rate limiting
+    # Mock Redis for rate limiting and token blacklist
     mock_redis = AsyncMock()
     mock_redis.ping = AsyncMock()
     mock_redis.evalsha = AsyncMock(return_value=0)
+    mock_redis.exists = AsyncMock(return_value=0)
+    mock_redis.setex = AsyncMock(return_value=True)
     main_app.state.redis = mock_redis
 
     async with AsyncClient(
@@ -241,6 +243,8 @@ def mock_redis() -> AsyncMock:
     mock = AsyncMock()
     mock.ping = AsyncMock()
     mock.evalsha = AsyncMock(return_value=0)
+    mock.exists = AsyncMock(return_value=0)
+    mock.setex = AsyncMock(return_value=True)
     mock.get = AsyncMock(return_value=None)
     mock.set = AsyncMock(return_value=True)
     mock.delete = AsyncMock(return_value=1)

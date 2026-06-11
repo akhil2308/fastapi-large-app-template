@@ -1,12 +1,10 @@
-import logging
-
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import User, get_current_user
 from app.core.database import get_db
 from app.core.schemas import ApiResponse, PaginatedApiResponse
-from app.core.settings import RateLimitConfig
+from app.core.settings import settings
 from app.schemas.todo_schema import Todo, TodoCreate, TodoUpdate
 from app.services.todo_service import (
     create_todo_service,
@@ -14,9 +12,7 @@ from app.services.todo_service import (
     get_todos_service,
     update_todo_service,
 )
-from app.utils.rate_limiter import user_rate_limiter
-
-logger = logging.getLogger(__name__)
+from app.utils.rate_limiter import RateLimit
 
 router = APIRouter()
 SERVICE = "todo"
@@ -28,8 +24,13 @@ SERVICE = "todo"
     status_code=status.HTTP_201_CREATED,
     tags=["Todo"],
     response_model=ApiResponse[Todo],
+    dependencies=[
+        Depends(
+            RateLimit(SERVICE, scope="user", per_min=settings.rate_limit.write_per_min)
+        )
+    ],
     responses={
-        429: {"description": "Daily write limit exceeded"},
+        429: {"description": "Write limit exceeded"},
         500: {"description": "Internal Server Error"},
     },
 )
@@ -42,24 +43,12 @@ async def create_todo(
     Creates a new Todo item.
     Requires 'todo_write' permissions.
     """
-    try:
-        await user_rate_limiter(
-            current_user.user_id, SERVICE, RateLimitConfig.WRITE_PER_MIN
-        )
-        data = await create_todo_service(current_user.user_id, body, db)
-        return {
-            "status": "success",
-            "message": "Todo created successfully",
-            "data": data,
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error creating todo: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error creating todo",
-        ) from e
+    data = await create_todo_service(current_user.user_id, body, db)
+    return {
+        "status": "success",
+        "message": "Todo created successfully",
+        "data": data,
+    }
 
 
 @router.get(
@@ -68,8 +57,13 @@ async def create_todo(
     status_code=status.HTTP_200_OK,
     tags=["Todo"],
     response_model=PaginatedApiResponse[Todo],
+    dependencies=[
+        Depends(
+            RateLimit(SERVICE, scope="user", per_min=settings.rate_limit.read_per_min)
+        )
+    ],
     responses={
-        429: {"description": "Daily read limit exceeded"},
+        429: {"description": "Read limit exceeded"},
         500: {"description": "Internal Server Error"},
     },
 )
@@ -82,28 +76,16 @@ async def get_todos(
     """
     Retrieve a paginated list of Todo items for the current user.
     """
-    try:
-        await user_rate_limiter(
-            current_user.user_id, SERVICE, RateLimitConfig.READ_PER_MIN
-        )
-        data = await get_todos_service(current_user.user_id, page_number, page_size, db)
-        return {
-            "status": "success",
-            "message": "Todos retrieved successfully",
-            "data": data["data"],
-            "total_size": data["total_size"],
-            "page_number": data["page_number"],
-            "page_size": data["page_size"],
-            "total_pages": data["total_pages"],
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error getting todos: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error getting todos",
-        ) from e
+    data = await get_todos_service(current_user.user_id, page_number, page_size, db)
+    return {
+        "status": "success",
+        "message": "Todos retrieved successfully",
+        "data": data["data"],
+        "total_size": data["total_size"],
+        "page_number": data["page_number"],
+        "page_size": data["page_size"],
+        "total_pages": data["total_pages"],
+    }
 
 
 @router.put(
@@ -112,6 +94,11 @@ async def get_todos(
     status_code=status.HTTP_200_OK,
     tags=["Todo"],
     response_model=ApiResponse[Todo],
+    dependencies=[
+        Depends(
+            RateLimit(SERVICE, scope="user", per_min=settings.rate_limit.write_per_min)
+        )
+    ],
     responses={
         404: {"description": "Todo not found"},
         429: {"description": "Rate limit exceeded"},
@@ -127,31 +114,17 @@ async def update_todo(
     """
     Update an existing Todo item.
     """
-    try:
-        await user_rate_limiter(
-            current_user.user_id, SERVICE, RateLimitConfig.WRITE_PER_MIN
-        )
-        updated_todo = await update_todo_service(
-            todo_id, current_user.user_id, body, db
-        )
-        if not updated_todo:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Todo not found",
-            )
-        return {
-            "status": "success",
-            "message": "Todo updated successfully",
-            "data": updated_todo,
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error updating todo: {e}", exc_info=True)
+    updated_todo = await update_todo_service(todo_id, current_user.user_id, body, db)
+    if not updated_todo:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error updating todo",
-        ) from e
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Todo not found",
+        )
+    return {
+        "status": "success",
+        "message": "Todo updated successfully",
+        "data": updated_todo,
+    }
 
 
 @router.delete(
@@ -160,6 +133,11 @@ async def update_todo(
     status_code=status.HTTP_200_OK,
     tags=["Todo"],
     response_model=ApiResponse[None],
+    dependencies=[
+        Depends(
+            RateLimit(SERVICE, scope="user", per_min=settings.rate_limit.write_per_min)
+        )
+    ],
     responses={
         404: {"description": "Todo not found"},
         429: {"description": "Rate limit exceeded"},
@@ -174,25 +152,13 @@ async def delete_todo(
     """
     Delete a Todo item (soft delete).
     """
-    try:
-        await user_rate_limiter(
-            current_user.user_id, SERVICE, RateLimitConfig.WRITE_PER_MIN
-        )
-        deleted = await delete_todo_service(todo_id, current_user.user_id, db)
-        if not deleted:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Todo not found",
-            )
-        return {
-            "status": "success",
-            "message": "Todo deleted successfully",
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error deleting todo: {e}", exc_info=True)
+    deleted = await delete_todo_service(todo_id, current_user.user_id, db)
+    if not deleted:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error deleting todo",
-        ) from e
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Todo not found",
+        )
+    return {
+        "status": "success",
+        "message": "Todo deleted successfully",
+    }

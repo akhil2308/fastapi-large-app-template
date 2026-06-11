@@ -3,15 +3,15 @@ from collections.abc import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
 
-from app.core.settings import DBConfig
+from app.core.settings import settings
 
 # Use asyncpg driver for PostgreSQL async support
-SQLALCHEMY_DATABASE_URL = DBConfig.ASYNC_URL
+SQLALCHEMY_DATABASE_URL = settings.db.async_url
 
 engine = create_async_engine(
     SQLALCHEMY_DATABASE_URL,
-    pool_size=DBConfig.POOL_SIZE,
-    max_overflow=DBConfig.MAX_OVERFLOW,
+    pool_size=settings.db.pool_size,
+    max_overflow=settings.db.max_overflow,
     pool_recycle=300,
     pool_pre_ping=True,
 )

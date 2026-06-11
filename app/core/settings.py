@@ -1,124 +1,154 @@
-from decouple import Csv, config
+from pydantic import Field, computed_field, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.core.enums import Environment
 
+_ENV_FILE = SettingsConfigDict(
+    env_file=".env", env_file_encoding="utf-8", extra="ignore"
+)
+
+_DEFAULT_LOG_LEVELS = {
+    Environment.LOCAL: "DEBUG",
+    Environment.DEV: "DEBUG",
+    Environment.STAGE: "INFO",
+    Environment.PROD: "WARNING",
+}
+
+
+def _split_csv(value: str) -> list[str]:
+    return [item.strip() for item in value.split(",") if item.strip()]
+
 
 # APP CONFIGURATION
-class AppConfig:
-    """
-    Application-level configuration including environment and debug settings.
+class AppSettings(BaseSettings):
+    model_config = _ENV_FILE
 
-    Environment is determined by ENV env var (default: local)
-    DEBUG can be explicitly set via DEBUG env var or inferred from environment.
-    """
+    env: str = "local"
+    # None means "infer from environment" for both of these.
+    debug: bool | None = None
+    log_level: str | None = None
 
-    # Environment configuration
-    ENV = config("ENV", default="local").lower()
-    ENVIRONMENT = Environment.from_string(ENV)
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def environment(self) -> Environment:
+        return Environment.from_string(self.env)
 
-    # Debug configuration
-    # Priority: Explicit DEBUG env var > Environment inference
-    _explicit_debug = config("DEBUG", default="").lower()
-
-    if _explicit_debug in ("true", "1", "yes"):
-        DEBUG = True
-    elif _explicit_debug in ("false", "0", "no"):
-        DEBUG = False
-    else:
-        # Infer from environment
-        DEBUG = ENVIRONMENT in (Environment.LOCAL, Environment.DEV)
-
-    # Logging level - can be overridden via LOG_LEVEL env var
-    # Default varies by environment when not explicitly set
-    _explicit_log_level = config("LOG_LEVEL", default="")
-
-    if _explicit_log_level:
-        LOG_LEVEL = _explicit_log_level.upper()
-    else:
-        # Default LOG_LEVEL based on environment
-        DEFAULT_LOG_LEVELS = {
-            Environment.LOCAL: "DEBUG",
-            Environment.DEV: "DEBUG",
-            Environment.STAGE: "INFO",
-            Environment.PROD: "WARNING",
-        }
-        LOG_LEVEL = DEFAULT_LOG_LEVELS.get(ENVIRONMENT, "INFO")
+    @model_validator(mode="after")
+    def _infer_from_env(self) -> "AppSettings":
+        if self.debug is None:
+            self.debug = self.environment in (Environment.LOCAL, Environment.DEV)
+        if self.log_level is None:
+            self.log_level = _DEFAULT_LOG_LEVELS.get(self.environment, "INFO")
+        else:
+            self.log_level = self.log_level.upper()
+        return self
 
 
 # CORE SETTINGS
-class CoreConfig:
-    ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="127.0.0.1,localhost", cast=Csv())
-    CORS_ORIGINS = config(
-        "CORS_ORIGINS",
-        default="http://localhost:3000,http://localhost:8000",
-        cast=Csv(),
-    )
-    # Use LOG_LEVEL from AppConfig
-    LOG_LEVEL = AppConfig.LOG_LEVEL
+class CoreSettings(BaseSettings):
+    model_config = _ENV_FILE
 
-    _is_wildcard = CORS_ORIGINS == ["*"] or "*" in CORS_ORIGINS
-    if _is_wildcard and AppConfig.ENVIRONMENT == Environment.PROD:
-        raise ValueError(
-            "CORS_ORIGINS may not be '*' when credentials are enabled in prod. "
-            "Set CORS_ORIGINS to an explicit list of allowed origins."
-        )
+    # Stored as raw CSV strings; pydantic would otherwise JSON-decode list fields from env.
+    allowed_hosts_raw: str = Field(
+        "127.0.0.1,localhost", validation_alias="ALLOWED_HOSTS"
+    )
+    cors_origins_raw: str = Field(
+        "http://localhost:3000,http://localhost:8000", validation_alias="CORS_ORIGINS"
+    )
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def allowed_hosts(self) -> list[str]:
+        return _split_csv(self.allowed_hosts_raw)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def cors_origins(self) -> list[str]:
+        return _split_csv(self.cors_origins_raw)
 
 
 # DATABASE SETTINGS
-class DBConfig:
-    HOST = config("POSTGRES_HOST", default="localhost")
-    PORT = config("POSTGRES_PORT", default=5432, cast=int)
-    USER = config("POSTGRES_USER", default="postgres")
-    PASSWORD = config("POSTGRES_PASSWORD", default="password")
-    NAME = config("POSTGRES_NAME", default="postgres")
+class DBSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="POSTGRES_", **_ENV_FILE)
 
-    POOL_SIZE = config("POSTGRES_POOL_SIZE", default=5, cast=int)
-    MAX_OVERFLOW = config("POSTGRES_MAX_OVERFLOW", default=10, cast=int)
+    host: str = "localhost"
+    port: int = 5432
+    user: str = "postgres"
+    password: str = "password"
+    name: str = "postgres"
 
-    # Async URL (app runtime)
-    ASYNC_URL = (f"postgresql+asyncpg://{USER}:{PASSWORD}@{HOST}:{PORT}/{NAME}").rstrip(
-        "/"
-    )
+    pool_size: int = 5
+    max_overflow: int = 10
 
-    # Sync URL (alembic migrations)
-    SYNC_URL = (f"postgresql+psycopg2://{USER}:{PASSWORD}@{HOST}:{PORT}/{NAME}").rstrip(
-        "/"
-    )
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def async_url(self) -> str:
+        return f"postgresql+asyncpg://{self.user}:{self.password}@{self.host}:{self.port}/{self.name}"
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def sync_url(self) -> str:
+        return f"postgresql+psycopg2://{self.user}:{self.password}@{self.host}:{self.port}/{self.name}"
 
 
 # JWT / AUTH SETTINGS
-class JWTConfig:
-    SECRET_KEY = config("JWT_SECRET_KEY", default=None)
-    if not SECRET_KEY:
-        raise ValueError("JWT_SECRET_KEY environment variable must be set")
-    ALGORITHM = config("JWT_ALGORITHM", default="HS256")
-    ACCESS_TOKEN_EXPIRE_MIN = config(
-        "JWT_ACCESS_TOKEN_EXPIRE_MINUTES", default=30, cast=int
-    )
-    REFRESH_TOKEN_EXPIRE_DAYS = config(
-        "JWT_REFRESH_TOKEN_EXPIRE_DAYS", default=7, cast=int
-    )
+class JWTSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="JWT_", **_ENV_FILE)
+
+    secret_key: str
+    algorithm: str = "HS256"
+    access_token_expire_minutes: int = 30
+    refresh_token_expire_days: int = 7
 
 
 # REDIS SETTINGS
-class RedisConfig:
-    HOST = config("REDIS_HOST", default="localhost")
-    PORT = config("REDIS_PORT", default=6379, cast=int)
-    PASSWORD = config("REDIS_PASSWORD", default=None)
-    DB = config("REDIS_DB", default=0, cast=int)
+class RedisSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="REDIS_", **_ENV_FILE)
 
-    MAX_CONNECTIONS = config("REDIS_MAX_CONNECTIONS", default=10, cast=int)
-    CONNECTION_TIMEOUT = config("REDIS_CONNECTION_TIMEOUT", default=5, cast=int)
-    HEALTH_CHECK_INTERVAL = config("REDIS_HEALTH_CHECK_INTERVAL", default=30, cast=int)
+    host: str = "localhost"
+    port: int = 6379
+    password: str | None = None
+    db: int = 0
 
-    URL = (
-        f"redis://:{PASSWORD}@{HOST}:{PORT}/{DB}"
-        if PASSWORD
-        else f"redis://{HOST}:{PORT}/{DB}"
-    )
+    max_connections: int = 10
+    connection_timeout: int = 5
+    health_check_interval: int = 30
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def url(self) -> str:
+        if self.password:
+            return f"redis://:{self.password}@{self.host}:{self.port}/{self.db}"
+        return f"redis://{self.host}:{self.port}/{self.db}"
 
 
 # RATE LIMIT SETTINGS
-class RateLimitConfig:
-    READ_PER_MIN = config("READ_RATE_LIMITING_PER_MIN", default=60, cast=int)
-    WRITE_PER_MIN = config("WRITE_RATE_LIMITING_PER_MIN", default=10, cast=int)
+class RateLimitSettings(BaseSettings):
+    model_config = _ENV_FILE
+
+    read_per_min: int = Field(60, validation_alias="READ_RATE_LIMITING_PER_MIN")
+    write_per_min: int = Field(10, validation_alias="WRITE_RATE_LIMITING_PER_MIN")
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(extra="ignore")
+
+    app: AppSettings = Field(default_factory=AppSettings)
+    core: CoreSettings = Field(default_factory=CoreSettings)
+    db: DBSettings = Field(default_factory=DBSettings)
+    jwt: JWTSettings = Field(default_factory=JWTSettings)  # type: ignore[arg-type]
+    redis: RedisSettings = Field(default_factory=RedisSettings)
+    rate_limit: RateLimitSettings = Field(default_factory=RateLimitSettings)
+
+    @model_validator(mode="after")
+    def _reject_wildcard_cors_in_prod(self) -> "Settings":
+        is_wildcard = "*" in self.core.cors_origins
+        if is_wildcard and self.app.environment == Environment.PROD:
+            raise ValueError(
+                "CORS_ORIGINS may not be '*' when credentials are enabled in prod. "
+                "Set CORS_ORIGINS to an explicit list of allowed origins."
+            )
+        return self
+
+
+settings = Settings()

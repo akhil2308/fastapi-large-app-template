@@ -120,7 +120,7 @@ class TestUserLogin:
             db=test_db,
             username="testuser",
             email="test@example.com",
-            hashed_password="$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",  # correctpassword
+            hashed_password="$argon2id$v=19$m=65536,t=3,p=4$IbL1B2eP7Owo/RNuXJ/HFg$B8BE8UH2jPfQDPvbYTGQOiX0JaWvriRt5U7LTs9xNfM",  # correctpassword
         )
 
         # Login with wrong password

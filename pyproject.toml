@@ -19,7 +19,6 @@ dependencies = [
     "fastapi-limiter ~= 0.1.6",
     "pydantic ~= 2.8.0",
     "email-validator ~= 2.2.0",
-    "python-decouple == 3.8",
     "pydantic-settings ~= 2.3.0",
     # OpenTelemetry dependencies - using stable versions
     "opentelemetry-api",

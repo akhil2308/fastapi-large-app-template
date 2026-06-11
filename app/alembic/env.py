@@ -5,7 +5,7 @@ from sqlalchemy import engine_from_config, pool
 
 import app.core.models
 from app.core.database import Base
-from app.core.settings import DBConfig
+from app.core.settings import settings
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -20,7 +20,7 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
-config.set_main_option("sqlalchemy.url", DBConfig.SYNC_URL)
+config.set_main_option("sqlalchemy.url", settings.db.sync_url)
 
 
 def run_migrations_offline() -> None:

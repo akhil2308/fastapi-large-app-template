@@ -1,7 +1,7 @@
 import logging
 
 from app.core.context import correlation_id_ctx
-from app.core.settings import CoreConfig
+from app.core.settings import settings
 
 
 class CorrelationIdFilter(logging.Filter):
@@ -30,7 +30,7 @@ log_config = {
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
-            "level": CoreConfig.LOG_LEVEL,
+            "level": settings.app.log_level,
             "formatter": "standard",
             "filters": ["correlation_id"],
             "stream": "ext://sys.stdout",
@@ -38,23 +38,23 @@ log_config = {
     },
     "loggers": {
         "": {
-            "level": CoreConfig.LOG_LEVEL,
+            "level": settings.app.log_level,
             "handlers": ["console"],
             "propagate": False,
         },
         "uvicorn": {
             "handlers": ["console"],
-            "level": CoreConfig.LOG_LEVEL,
+            "level": settings.app.log_level,
             "propagate": False,
         },
         "uvicorn.access": {
             "handlers": ["console"],
-            "level": CoreConfig.LOG_LEVEL,
+            "level": settings.app.log_level,
             "propagate": False,
         },
         "uvicorn.error": {
             "handlers": ["console"],
-            "level": CoreConfig.LOG_LEVEL,
+            "level": settings.app.log_level,
             "propagate": False,
         },
     },
