@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from passlib.context import CryptContext
+from pwdlib import PasswordHash
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import (
@@ -21,17 +21,17 @@ from app.crud.user_crud import (
 from app.models.user_model import User
 from app.schemas.user_schema import TokenPair, UserCreateRequest, UserCreateResponse
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+_pwd = PasswordHash.recommended()
+# Used on the login miss-path so response time is constant regardless of username existence.
+_DUMMY_HASH: str = _pwd.hash("__dummy__")
 
 
 def hash_password(password: str) -> str:
-    hashed: str = pwd_context.hash(password)
-    return hashed
+    return _pwd.hash(password)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    result: bool = pwd_context.verify(plain_password, hashed_password)
-    return result
+    return _pwd.verify(plain_password, hashed_password)
 
 
 async def register_user(
@@ -52,7 +52,12 @@ async def register_user(
 
 async def login_user(db: AsyncSession, username: str, password: str) -> User:
     user = await get_user_by_username(db, username)
-    if not user or not verify_password(password, user.hashed_password):
+    if not user:
+        verify_password(
+            password, _DUMMY_HASH
+        )  # constant-time: prevent username enumeration
+        raise InvalidCredentialsError("Invalid credentials")
+    if not verify_password(password, user.hashed_password):
         raise InvalidCredentialsError("Invalid credentials")
     return user
 
@@ -66,6 +71,9 @@ async def logout_user(token: str) -> None:
 
 
 async def refresh_tokens(db: AsyncSession, refresh_token: str) -> TokenPair:
+    # Trade-offs: JTI blacklisting does not cover family reuse (stolen token
+    # rotated first); is_token_blacklisted fails open when Redis is down
+    # (deliberate: availability > strict revocation — see app/core/auth.py).
     payload = decode_refresh_token(refresh_token)
     if not payload:
         raise InvalidCredentialsError("Invalid or expired refresh token")

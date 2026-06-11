@@ -10,6 +10,7 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from fastapi_limiter import FastAPILimiter  # type: ignore[attr-defined]
 from redis.asyncio import Redis
+from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.api.health_router import router as health_router
 from app.api.todo_router import router as todo_router
@@ -92,6 +93,9 @@ app = FastAPI(
 )
 
 
+# Proxy / Load Balancer Level (Rewrites request.client.host from X-Forwarded-For)
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+
 # Network/Server Level	(For Allowing Server to Server Communication)
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=CoreConfig.ALLOWED_HOSTS)
 
@@ -100,8 +104,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=CoreConfig.CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],  # ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
-    allow_headers=["*"],  # ["Content-Type", "Authorization"]
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-Correlation-ID"],
 )
 
 app.add_middleware(SecurityHeadersMiddleware)

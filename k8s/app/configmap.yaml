@@ -43,6 +43,7 @@ data:
   WRITE_RATE_LIMITING_PER_MIN: "10"
 
   # ── Security / CORS ───────────────────────────────────────────────────────
-  # Restrict ALLOWED_HOSTS and CORS_ORIGINS to specific domains in production.
-  ALLOWED_HOSTS: "*"
-  CORS_ORIGINS: "*"
+  # REQUIRED: replace with the actual domain(s) before deploying.
+  # Wildcard '*' is rejected at startup in prod when credentials are enabled.
+  ALLOWED_HOSTS: "yourdomain.com"
+  CORS_ORIGINS: "https://yourdomain.com"

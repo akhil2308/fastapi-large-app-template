@@ -50,11 +50,30 @@ spec:
                       values:
                         - fastapi-app
                 topologyKey: kubernetes.io/hostname
+      # Pod-level security: run as a non-root user so no process in the pod
+      # can write to sensitive host paths even if a container is compromised.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      automountServiceAccountToken: false
       containers:
         - name: fastapi-app
           # TODO: replace with your registry and pinned tag before deploying.
           image: your-registry/fastapi-large-app-template:latest
           imagePullPolicy: Always
+          # Container-level security: drop all Linux capabilities, prevent
+          # privilege escalation, and mount the root filesystem read-only.
+          # /tmp is writable via an emptyDir volume below for any temp files.
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           ports:
             - name: http
               containerPort: 8000
@@ -112,3 +131,10 @@ spec:
             preStop:
               exec:
                 command: ["sh", "-c", "sleep 5"]
+          volumeMounts:
+            # Writable /tmp needed when readOnlyRootFilesystem is true.
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

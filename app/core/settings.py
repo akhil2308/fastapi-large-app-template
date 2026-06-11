@@ -56,6 +56,13 @@ class CoreConfig:
     # Use LOG_LEVEL from AppConfig
     LOG_LEVEL = AppConfig.LOG_LEVEL
 
+    _is_wildcard = CORS_ORIGINS == ["*"] or "*" in CORS_ORIGINS
+    if _is_wildcard and AppConfig.ENVIRONMENT == Environment.PROD:
+        raise ValueError(
+            "CORS_ORIGINS may not be '*' when credentials are enabled in prod. "
+            "Set CORS_ORIGINS to an explicit list of allowed origins."
+        )
+
 
 # DATABASE SETTINGS
 class DBConfig:
