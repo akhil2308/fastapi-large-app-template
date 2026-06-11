@@ -540,6 +540,7 @@ dependencies = [
     { name = "redis" },
     { name = "sqlalchemy" },
     { name = "uvicorn", extra = ["standard"] },
+    { name = "uvicorn-worker" },
 ]
 
 [package.optional-dependencies]
@@ -593,6 +594,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'", specifier = "~=0.8.0" },
     { name = "sqlalchemy", specifier = "~=2.0.44" },
     { name = "uvicorn", extras = ["standard"], specifier = "~=0.30.0" },
+    { name = "uvicorn-worker", specifier = "~=0.2.0" },
 ]
 provides-extras = ["test", "dev"]
 
@@ -1785,6 +1787,19 @@ standard = [
     { name = "uvloop", marker = "platform_python_implementation != 'PyPy' and sys_platform != 'cygwin' and sys_platform != 'win32'" },
     { name = "watchfiles" },
     { name = "websockets" },
+]
+
+[[package]]
+name = "uvicorn-worker"
+version = "0.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "gunicorn" },
+    { name = "uvicorn" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d9/7a/a4b06ea7ece47f6b020671209912a505f8eef1812e02a68cb25d71ee0e8d/uvicorn_worker-0.2.0.tar.gz", hash = "sha256:f6894544391796be6eeed37d48cae9d7739e5a105f7e37061eccef2eac5a0295", size = 8959, upload-time = "2024-03-30T14:35:36.073Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9e/9c/5ead3efe80abb7ba5e2764650a050e7c25d8a75228543a1e63ce321186c3/uvicorn_worker-0.2.0-py3-none-any.whl", hash = "sha256:65dcef25ab80a62e0919640f9582216ee05b3bb1dc2f0e58b354ca0511c398fb", size = 5282, upload-time = "2024-03-30T14:35:34.684Z" },
 ]
 
 [[package]]

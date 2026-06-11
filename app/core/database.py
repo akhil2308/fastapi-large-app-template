@@ -30,11 +30,10 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
     Async generator that yields database sessions
     Usage in endpoints: db: AsyncSession = Depends(get_db)
     """
+    # The async context manager closes the session on exit; no explicit close needed.
     async with AsyncSessionLocal() as db:
         try:
             yield db
         except Exception:
             await db.rollback()
             raise
-        finally:
-            await db.close()

@@ -10,7 +10,7 @@ WORKERS=${WORKERS:-$(( $(nproc) * 2 + 1 ))}
 echo "Starting FastAPI server..."
 gunicorn \
     --workers "${WORKERS}" \
-    --worker-class uvicorn.workers.UvicornWorker \
+    --worker-class uvicorn_worker.UvicornWorker \
     --bind 0.0.0.0:8000 \
     --log-level info \
     --access-logfile - \

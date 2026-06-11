@@ -8,7 +8,6 @@ from app.core.database import get_db
 from app.core.schemas import ApiResponse
 from app.core.settings import settings
 from app.schemas.user_schema import (
-    LoginResponseData,
     RefreshRequest,
     TokenPair,
     UserCreateRequest,
@@ -66,7 +65,7 @@ async def register(
     summary="Login to get access token",
     status_code=status.HTTP_200_OK,
     tags=["Authentication"],
-    response_model=ApiResponse[LoginResponseData],
+    response_model=ApiResponse[TokenPair],
     dependencies=[
         Depends(
             RateLimit(

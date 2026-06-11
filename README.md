@@ -8,16 +8,18 @@ A production-ready FastAPI template designed for building secure, scalable APIs 
 
 ## Features ✨
 
-- **JWT Authentication** with refresh tokens 🔒
-- **Custom Rate Limiting** per user/service ⏱️
+- **JWT Authentication** — login, logout (token blacklist) and refresh-token rotation 🔒
+- **Argon2id Password Hashing** via `pwdlib` 🔑
+- **Custom Rate Limiting** per user/service, declared as a route dependency ⏱️
 - **Unified Logging** (UVICORN + GUNICORN) 📝
 - **Redis Connection Pooling** (Async) with fail-open strategy 🧠
 - **PostgreSQL Connection Pooling** (Async) with health checks 🐘
-- **Standardized API Responses** 📦
+- **Standardized API Responses** with centralized exception handlers 📦
+- **Typed Settings** via `pydantic-settings` (fail-fast validation) ⚙️
 - **Alembic for Database Migrations** 🗄️
 - **Modern Package Management with `uv`** ⚡
-- **Production-Ready Error Handling** 🛡️
-- **Docker** + **Gunicorn** + **Uvicorn** Stack 🐳⚡
+- **One-command Local Stack** — `make up` (app + Postgres + Redis) 🐳
+- **Kubernetes Manifests** — probes, security context, NetworkPolicy, HPA ☸️
 - **OpenTelemetry Observability** — metrics, traces, Golden Signals dashboards (Prometheus + Grafana + Tempo) 📊
 
 ## Observability 📊
@@ -45,293 +47,80 @@ This template includes a **production-grade OpenTelemetry observability setup** 
 
 | Component              | Technology                          |
 |------------------------|-------------------------------------|
-| Framework              | FastAPI 0.111+                      |
+| Framework              | FastAPI 0.121+                      |
 | Database               | PostgreSQL 14+                      |
 | Cache                  | Redis 6+                            |
-| ORM                    | SQLAlchemy 2.0                      |
+| ORM                    | SQLAlchemy 2.0 (async, asyncpg)     |
 | Migrations             | Alembic                             |
+| Configuration          | pydantic-settings                   |
 | Authentication         | JWT (OAuth2 Password Bearer)        |
+| Password Hashing       | Argon2id (`pwdlib`)                 |
 | Rate Limiting          | Redis-backed Custom Implementation  |
 | Package Manager        | `uv` (fast Python installer)        |
-| Containerization       | Docker                              |
+| Containerization       | Docker + docker-compose             |
+| Orchestration          | Kubernetes (manifests in `k8s/`)    |
 | Observability          | OpenTelemetry                       |
+| Testing                | pytest, fakeredis, hypothesis       |
 
 ## Project Structure 🌳
 
-The repository follows a **modular, domain-oriented structure** designed for large, production-grade FastAPI applications:
+The repository follows a **layered architecture** — each request flows
+`api → services → crud → models`, with `schemas` for I/O validation. This keeps
+HTTP concerns, business logic, and persistence cleanly separated and easy to
+test in isolation.
 
-- `app/` — Core FastAPI application
-  - Domain modules (`user`, `todo`, `health`)
-  - Core configuration, database, logging (`core/`)
-  - Shared utilities: auth dependency, rate limiter (`utils/`)
-  - OpenTelemetry observability setup (`observability/`)
-  - Alembic migrations
-  - Application entry point (`main.py`)
+```
+app/
+├── api/            # Routers + request dependencies (user, todo, health)
+├── services/       # Business logic (orchestrates crud + auth)
+├── crud/           # Async SQLAlchemy data-access functions
+├── models/         # SQLAlchemy ORM models
+├── schemas/        # Pydantic request/response schemas
+├── core/           # Settings, database, auth, exceptions, middleware, logging
+├── utils/          # Rate limiter dependency
+├── observability/  # OpenTelemetry telemetry, metrics, instrumentation
+├── alembic/        # Migration environment & versions
+└── main.py         # App factory, middleware wiring, exception handlers, lifespan
 
-- `docker/observability/` — Local observability stack
-  - OpenTelemetry Collector
-  - Prometheus
-  - Grafana (pre-provisioned dashboards & datasources)
-  - Tempo (distributed tracing)
-
-- `docs/` — Documentation & assets
-  - Observability guide and dashboards
-  - Architecture diagrams and screenshots
-
-- `tests/` — Automated tests
-
-- Root files — `Dockerfile`, `Makefile`, `run.sh`, `pyproject.toml`, `uv.lock`, etc.
+k8s/                # Kubernetes manifests (deployment, service, HPA, NetworkPolicy, jobs)
+docker/observability/  # Local Grafana/Tempo/Prometheus/OTel collector stack
+docs/               # Observability guide, dashboards, screenshots
+tests/              # unit / integration / e2e suites (pytest, fakeredis, hypothesis)
+docker-compose.yml  # One-command local stack (app + postgres + redis)
+Dockerfile          # Canonical multi-stage image (lockfile-pinned)
+```
 
 ---
 
 ## Key Implementations 🔑
 
-### Database Pooling Configuration
+These patterns are the reason the template exists. Rather than paste code that
+drifts from the source, each links to the file that owns it.
 
-**PostgreSQL (SQLAlchemy 2.0 + asyncpg):**
-```python
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+| Concern | Where it lives | What to look at |
+|---------|----------------|-----------------|
+| **Typed settings** | [app/core/settings.py](app/core/settings.py) | `pydantic-settings` tree, validated and fail-fast (e.g. rejects `CORS=*` with credentials in prod) |
+| **Async DB pooling** | [app/core/database.py](app/core/database.py) | `create_async_engine` + `async_sessionmaker`, pre-ping, recycle; pool sizes come from settings |
+| **Redis pool + lifespan** | [app/main.py](app/main.py) | Connection pool, startup health checks, graceful `engine.dispose()` on shutdown |
+| **JWT auth** | [app/core/auth.py](app/core/auth.py), [app/api/deps.py](app/api/deps.py) | Access/refresh token types, `get_current_user`, blacklist check |
+| **Auth flows** | [app/services/user_service.py](app/services/user_service.py) | Register / login / logout / refresh-token rotation |
+| **Rate limiting** | [app/utils/rate_limiter.py](app/utils/rate_limiter.py) | `RateLimit(...)` dependency — declared in the route signature, fail-open on Redis errors |
+| **Centralized errors** | [app/main.py](app/main.py), [app/core/exceptions.py](app/core/exceptions.py) | `AppError` handlers map domain errors to status codes; routers stay thin |
+| **Standardized responses** | [app/core/schemas.py](app/core/schemas.py) | `ApiResponse` / `PaginatedApiResponse` generics |
+| **Logging** | [app/core/logging_config.py](app/core/logging_config.py) | Unified Uvicorn/Gunicorn formatter with correlation ID |
+| **Observability** | [app/observability/](app/observability/) | OpenTelemetry tracing + metrics; see [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md) |
 
-# Async PostgreSQL connection pool
-engine = create_async_engine(
-    "postgresql+asyncpg://user:pass@host:port/dbname",
-    pool_size=20,          # Persistent connection pool size
-    max_overflow=10,       # Temporary connections beyond pool_size
-    pool_recycle=300,      # Recycle connections every 300s
-    pool_pre_ping=True,    # Validate connections before use
-    future=True            # Enable SQLAlchemy 2.0 behavior
-)
+Every endpoint returns the same envelope:
 
-# Async session factory configuration
-AsyncSessionLocal = async_sessionmaker(
-    bind=engine,
-    expire_on_commit=False,  # Prevent attribute expiration on commit
-    autoflush=False,         # Manual flush control
-    class_=AsyncSession      # Use SQLAlchemy's async session class
-)
-```
-
-**Key Features**:
-- 🚀 **Full Async Support**: Non-blocking database operations via asyncpg
-- 🔄 **Connection Recycling**: Prevents stale connections in long-running applications
-- 🩺 **Connection Validation**: Pre-ping checks verify connection health
-- 📈 **Optimized Pooling**: Balances memory usage and concurrent requests
-- ⚡ **SQLAlchemy 2.0**: Future-proof API with explicit transaction control
-
-
-**Redis Connection Pool:**
-```python
-redis = await Redis(
-    host="redis.prod.internal",
-    port=6379,
-    db=0,
-    password="securepassword",
-    socket_connect_timeout=5,    # 5s connection timeout
-    socket_keepalive=True,       # Maintain TCP keepalive
-    retry_on_timeout=True,       # Auto-retry failed operations
-    max_connections=100,         # Max pool size
-    health_check_interval=30     # Validate connections every 30s
-)
-```
-- **Enterprise Features:** TLS support, cluster mode ready
-- **Resiliency:** Automatic retries and health checks
-
----
-
-### 🔒 Secure Endpoint Example
-
-**Protected Todo Creation:**
-```python
-@router.post("/")
-async def create_todo(
-    body: TodoCreate,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Implements:
-    - JWT Authentication
-    - User-based Rate Limiting
-    - Structured Error Handling
-    - Audit Logging
-    """
-    try:
-        # Rate limit check
-        await user_rate_limiter(current_user.user_id, "todo_write")
-
-        # Business logic
-        data = await create_todo_service(current_user.user_id, body, db)
-
-        # Standardized success response
-        return {
-            "status": "success",
-            "message": "Todo created",
-            "data": data
-        }
-
-    except HTTPException as e:
-        # Preserve existing HTTP exceptions
-        raise
-    except Exception as e:
-        # Log full error context
-        logger.error(f"Todo creation failed: {str(e)}", exc_info=True)
-        # Return standardized error format
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error"
-        )
-```
-
----
-
-### ⏱️ Custom Rate Limiting
-
-**Implementation:**
-```python
-async def user_rate_limiter(
-    user_id: str,
-    service: str,
-    times: int = 5,
-    seconds: int = 60
-):
-    """
-    Redis-backed rate limiter using LUA scripts for atomic operations
-    """
-    key = f"rl:user:{user_id}:{service}"
-    try:
-        pexpire = await FastAPILimiter.redis.evalsha(
-            FastAPILimiter.lua_sha, 1,
-            key,
-            str(times),
-            str(seconds * 1000)  # Convert to milliseconds
-        )
-        if pexpire != 0:
-            raise HTTPException(
-                status_code=429,
-                detail=f"Try again in {ceil(pexpire/1000)} seconds"
-            )
-    except Exception as e:
-        logger.error(f"Rate limit check failed: {str(e)}")
-        # Fail-open during Redis outages
-```
-
-**Features:**
-- ✅ User+service specific limits
-- ✅ Atomic Redis operations via LUA scripts
-- ✅ Fail-open circuit breaker pattern
-- ✅ Millisecond precision timeouts
-- ✅ Automatic retry-after calculation
-
----
-
-### 📝 Unified Logging System
-
-**Configuration:**
-```python
-logging_config = {
-    "version": 1,
-    "formatters": {
-        "standard": {
-            "format": "[{asctime}] [{process}] [{levelname}] {module}.{funcName}:{lineno} - {message}",
-            "datefmt": "%Y-%m-%d %H:%M:%S %z",
-            "style": "{"
-        }
-    },
-    "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
-            "formatter": "standard",
-            "stream": "ext://sys.stdout"
-        }
-    },
-    "loggers": {
-        "": {"level": "DEBUG", "handlers": ["console"], "propagate": False},
-        "uvicorn": {"level": "INFO", "propagate": False},
-        "uvicorn.access": {"level": "INFO", "propagate": False},
-        "uvicorn.error": {"level": "INFO", "propagate": False}
-    }
-}
-```
-
-**Log Example:**
-```
-[2024-05-20 14:30:45 +0000] [1234] [INFO] todo.routers.create_todo:52 - Created todo ID:42
-```
-
-**Features:**
-- 📌 Consistent timestamp with timezone
-- 📌 Process ID tracking
-- 📌 Module/function/line number context
-- 📌 Uvicorn log unification
-- 📌 Production-ready INFO level defaults
-
----
-
-### 📦 Standardized API Response
-
-**Success Response:**
 ```json
-{
-  "status": "success",
-  "message": "Todo created successfully",
-  "data": {
-    "id": 42,
-    "task": "Implement rate limiting"
-  }
-}
+{ "status": "success", "message": "...", "data": { ... } }
 ```
 
-**Error Response:**
+…and errors are normalized by the handlers in `main.py`:
+
 ```json
-{
-  "status": "error",
-  "message": "Validation Failed",
-  "errors": [
-    {
-      "type": "missing",
-      "loc": ["body", "task"],
-      "msg": "Field required",
-      "input": {}
-    }
-  ]
-}
+{ "status": "error", "message": "Validation Failed", "errors": [ ... ] }
 ```
-
-**Implementation:**
-```python
-@app.exception_handler(RequestValidationError)
-async def validation_handler(request: Request, exc: RequestValidationError):
-    errors = [
-        {"type": e.get("type"), "loc": e.get("loc"), "msg": e.get("msg"), "input": e.get("input")}
-        for e in exc.errors()
-    ]
-    return JSONResponse(
-        status_code=422,
-        content={
-            "status": "error",
-            "message": "Validation Failed",
-            "errors": errors,
-        }
-    )
-
-@app.exception_handler(HTTPException)
-async def http_handler(request: Request, exc: HTTPException):
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={
-            "status": "error",
-            "message": exc.detail,
-            "errors": getattr(exc, "errors", None),
-        }
-    )
-```
-
-**Features:**
-- ✅ RFC-compliant error formats
-- ✅ Automatic validation error parsing
-- ✅ Consistent error code mapping
-- ✅ Detailed error context preservation
-
 
 ## Getting Started
 
@@ -340,11 +129,27 @@ async def http_handler(request: Request, exc: HTTPException):
 - Python 3.11+
 - PostgreSQL 14+
 - Redis 6+
-- Docker (optional)
+- Docker (optional, but the fastest way to run the full stack)
 
 ---
 
-### Installation
+### Quickstart (Docker Compose) 🐳
+
+The fastest path — builds the app image and starts the app, PostgreSQL, and
+Redis together. Migrations run automatically on container start.
+
+```bash
+make up      # build + start app + postgres + redis (detached)
+make logs    # follow the app logs
+make down    # stop and remove the stack
+```
+
+Then open <http://localhost:8000/docs>. To also run the observability stack
+(Grafana/Tempo/Prometheus/OTel), use `make up-observability`.
+
+---
+
+### Installation (local Python)
 
 ```bash
 git clone https://github.com/akhil2308/fastapi-large-app-template.git
@@ -397,6 +202,15 @@ make typecheck
 # Full CI pipeline
 make ci
 
+# Local Docker stack (app + postgres + redis)
+make up
+make down
+make logs
+
+# Observability stack (Grafana/Tempo/Prometheus/OTel)
+make up-observability
+make down-observability
+
 # Clean generated files
 make clean
 ```
@@ -441,8 +255,42 @@ uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 **Production:**
 
 ```bash
-./run.sh  # Starts Gunicorn with Uvicorn workers
+./run.sh  # Applies migrations, then starts Gunicorn with uvicorn-worker
 ```
+
+---
+
+## Docker 🐳
+
+A single canonical multi-stage [Dockerfile](Dockerfile) is used by both
+docker-compose and Kubernetes. It installs dependencies straight from `uv.lock`
+with `uv sync --frozen` (so the image can never drift from the committed lock),
+pins the Python base image, and runs as a non-root user.
+
+```bash
+docker build -t fastapi-large-app-template .
+```
+
+---
+
+## Kubernetes ☸️
+
+Manifests live in [k8s/](k8s/) — namespace, ConfigMap/Secret, Deployment,
+Service, HPA, PodDisruptionBudget, a default-deny NetworkPolicy, and a
+migration Job. The Deployment ships with startup/readiness/liveness probes, a
+hardened security context, and `automountServiceAccountToken: false`.
+
+```bash
+# 1. Build and push your image, then set it in k8s/app/deployment.yaml
+#    and k8s/jobs/migration.yaml.
+# 2. Fill in k8s/app/secret.yaml (JWT_SECRET_KEY, DB/Redis passwords) and
+#    review k8s/app/configmap.yaml (ALLOWED_HOSTS, CORS_ORIGINS, OTEL endpoint).
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/app/
+kubectl apply -f k8s/jobs/migration.yaml
+```
+
+See [k8s/README.md](k8s/README.md) for the full walkthrough.
 
 ---
 

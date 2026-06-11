@@ -1,30 +1,56 @@
 import uuid
 
-from fastapi import Request
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import Response
+from starlette.datastructures import Headers, MutableHeaders
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.core.context import correlation_id_ctx
 
-
-class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    """Add security headers to every response."""
-
-    async def dispatch(self, request: Request, call_next) -> Response:
-        response = await call_next(request)
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
-        response.headers["X-XSS-Protection"] = "1; mode=block"
-        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        return response
+_SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "X-XSS-Protection": "1; mode=block",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+}
 
 
-class CorrelationIDMiddleware(BaseHTTPMiddleware):
-    """Read or generate a correlation ID and echo it on the response."""
+class SecurityHeadersMiddleware:
+    """Add security headers to every HTTP response (pure ASGI)."""
 
-    async def dispatch(self, request: Request, call_next) -> Response:
-        request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def send_wrapper(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                headers = MutableHeaders(scope=message)
+                for key, value in _SECURITY_HEADERS.items():
+                    headers[key] = value
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)
+
+
+class CorrelationIDMiddleware:
+    """Read or generate a correlation ID and echo it on the response (pure ASGI)."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        request_id = Headers(scope=scope).get("X-Request-ID") or str(uuid.uuid4())
         correlation_id_ctx.set(request_id)
-        response = await call_next(request)
-        response.headers["X-Request-ID"] = request_id
-        return response
+
+        async def send_wrapper(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                MutableHeaders(scope=message)["X-Request-ID"] = request_id
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)

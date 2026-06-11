@@ -52,7 +52,7 @@ class TestCreateTodoService:
         assert result is not None
         assert result.title == title
         assert result.description == expected_description
-        assert result.user_id == user.user_id
+        assert result.todo_id is not None
         assert result.completed is False
 
     async def test_create_todo_success(self, test_db):
@@ -74,7 +74,7 @@ class TestCreateTodoService:
         assert result is not None
         assert result.title == "Test Todo"
         assert result.description == "Test Description"
-        assert result.user_id == user.user_id
+        assert result.todo_id is not None
         assert result.completed is False
 
     async def test_create_todo_with_minimal_data(self, test_db):

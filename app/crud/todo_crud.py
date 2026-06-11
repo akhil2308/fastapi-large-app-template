@@ -25,18 +25,6 @@ async def create_todo(
     return new_todo
 
 
-async def get_todos_by_offset(
-    db: AsyncSession, user_id: str, offset: int = 0, limit: int = 100
-) -> Sequence[Todo]:
-    result = await db.execute(
-        select(Todo)
-        .where(Todo.user_id == user_id, Todo.is_deleted.is_(False))
-        .offset(offset)
-        .limit(limit)
-    )
-    return result.scalars().all()
-
-
 async def get_todos_by_page_number(
     db: AsyncSession, user_id: str, page_number: int = 1, page_size: int = 100
 ) -> Sequence[Todo]:

@@ -1,0 +1,64 @@
+# One-command local stack: app + PostgreSQL + Redis.
+# Usage:
+#   make up      # build + start in the background
+#   make down    # stop and remove containers
+# The observability stack (Grafana/Tempo/Prometheus/OTel) lives separately in
+# docker/observability — start it with `make up-observability` and point
+# OTEL_EXPORTER_OTLP_ENDPOINT below at the collector if you want traces.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres  # pragma: allowlist secret
+      POSTGRES_DB: mydb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d mydb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # run.sh applies Alembic migrations, then starts Gunicorn.
+    command: ["sh", "run.sh"]
+    ports:
+      - "8000:8000"
+    environment:
+      ENV: local
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres  # pragma: allowlist secret
+      POSTGRES_NAME: mydb
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      ALLOWED_HOSTS: "*"
+      CORS_ORIGINS: "*"
+      # Local-only signing key; generate a real one for any deployed environment.
+      JWT_SECRET_KEY: "local-dev-secret-not-for-production"  # pragma: allowlist secret
+      OTEL_EXPORTER_OTLP_ENDPOINT: ""
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
