@@ -1,18 +1,14 @@
 # Job — fastapi-app-migration
-# Runs Alembic database migrations to bring the schema to the latest revision
-# before (or alongside) a new Deployment rollout.
+# Runs Alembic database migrations before (or alongside) a new Deployment.
 #
 # Usage:
-#   kubectl apply -f k8s/jobs/migration.yaml
+#   kubectl apply -k k8s/overlays/prod          # via kustomize (recommended)
+#   kubectl apply -f k8s/base/jobs/migration.yaml  # standalone (uses base image tag)
 #
-# Design notes:
-#   - restartPolicy=OnFailure retries the container on non-zero exit without
-#     creating a new pod, preserving logs for the current attempt.
-#   - ttlSecondsAfterFinished=120 cleans up the Job object 2 minutes after
-#     completion (success or failure) to avoid cluttering the namespace.
-#   - The same image tag used by the Deployment ensures migration code and
-#     application code are always in sync.
-# Replace `your-registry/fastapi-large-app-template:latest` with your image.
+# Helm users: annotate with "helm.sh/hook: pre-upgrade,pre-install"
+# Argo CD users: set sync-wave: "-1" to run before the Deployment wave.
+# Replace `your-registry/fastapi-large-app-template:latest` with your image,
+# or let the kustomize overlay images: transformer do it automatically.
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -22,6 +18,10 @@ metadata:
     app: fastapi-app
     component: migration
 spec:
+  # Retry the pod up to 3 times on failure before marking the Job failed.
+  backoffLimit: 3
+  # Fail the Job if it hasn't completed within 5 minutes (stuck migration guard).
+  activeDeadlineSeconds: 300
   # Automatically delete the Job resource 2 minutes after it finishes.
   ttlSecondsAfterFinished: 120
   template:
@@ -34,7 +34,6 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: migration
-          # TODO: pin to the same tag as the Deployment image.
           image: your-registry/fastapi-large-app-template:latest
           imagePullPolicy: Always
           # Run Alembic upgrade to the latest migration revision.

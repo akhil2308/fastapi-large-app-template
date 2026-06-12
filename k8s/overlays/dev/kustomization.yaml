@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+# Pin both Deployment and Job to the same image tag.
+# Override at deploy time: kustomize edit set image your-registry/fastapi-large-app-template=<tag>
+images:
+  - name: your-registry/fastapi-large-app-template
+    newTag: latest
+
+patches:
+  - path: patches/deployment.yaml
+  - path: patches/hpa.yaml
+  - path: patches/configmap.yaml

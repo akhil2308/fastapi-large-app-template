@@ -1,0 +1,19 @@
+# prod: 3 baseline replicas, larger resource envelope for production load.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fastapi-app
+  namespace: fastapi-app
+spec:
+  replicas: 3
+  template:
+    spec:
+      containers:
+        - name: fastapi-app
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"

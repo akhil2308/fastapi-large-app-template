@@ -2,35 +2,64 @@
 
 ```
 k8s/
-  namespace.yaml
-  app/
-    configmap.yaml
-    secret.yaml
-    deployment.yaml
-    service.yaml
-    hpa.yaml
-    pdb.yaml
-  jobs/
-    migration.yaml
+  base/                        # Shared manifests — do not deploy directly
+    kustomization.yaml
+    namespace.yaml
+    app/
+      configmap.yaml
+      secret.yaml
+      deployment.yaml
+      service.yaml
+      ingress.yaml
+      hpa.yaml
+      pdb.yaml
+      network-policy.yaml
+    jobs/
+      migration.yaml
+  overlays/
+    dev/                       # 1 replica, lighter resources, debug logging
+    staging/                   # 2 replicas, production-like topology
+    prod/                      # 3 replicas, full resource envelope
 ```
 
-## Apply Order
-
-The migration Job must complete before the Deployment starts, as the app checks DB connectivity on startup.
+## Deploying with Kustomize
 
 ```bash
-kubectl apply -f k8s/namespace.yaml
-kubectl apply -f k8s/app/configmap.yaml
-kubectl apply -f k8s/app/secret.yaml
-kubectl apply -f k8s/jobs/migration.yaml
-kubectl wait --for=condition=complete job/fastapi-app-migration -n fastapi-app --timeout=120s
-kubectl apply -f k8s/app/deployment.yaml
-kubectl apply -f k8s/app/service.yaml
-kubectl apply -f k8s/app/hpa.yaml
-kubectl apply -f k8s/app/pdb.yaml
+# Preview what will be applied
+kubectl kustomize k8s/overlays/prod
+
+# Deploy (migration Job + all app resources)
+kubectl apply -k k8s/overlays/prod
+
+# Wait for the migration Job to complete before the Deployment is ready
+kubectl wait --for=condition=complete job/fastapi-app-migration \
+  -n fastapi-app --timeout=300s
 ```
 
-Teardown:
+Replace `prod` with `dev` or `staging` as needed.
+
+### Pinning the image tag
+
+Each overlay's `kustomization.yaml` contains an `images:` stanza that locks
+both the Deployment and the migration Job to the same tag.  Override it in CI
+before applying:
+
+```bash
+cd k8s/overlays/prod
+kustomize edit set image your-registry/fastapi-large-app-template=v1.2.3
+kubectl apply -k .
+```
+
+Or pass it inline (no file edit required):
+
+```bash
+kubectl apply -k k8s/overlays/prod \
+  --kustomize-post-build-env IMAGE_TAG=v1.2.3
+# Note: inline override requires kustomize ≥ 5.1 with the env transformer.
+# The kustomize edit approach above is universally compatible.
+```
+
+### Teardown
 
 ```bash
 kubectl delete namespace fastapi-app
@@ -38,13 +67,8 @@ kubectl delete namespace fastapi-app
 
 ## Secrets
 
-`secret.yaml` contains `CHANGE_ME` placeholders. Replace before applying.
-
-**Edit directly (dev only — never commit real values):**
-
-```bash
-kubectl apply -f k8s/app/secret.yaml
-```
+`base/app/secret.yaml` contains `CHANGE_ME` placeholders.  **Never commit real
+values.**  Supply them one of three ways:
 
 **Imperative create (CI/CD):**
 
@@ -53,47 +77,52 @@ kubectl create secret generic fastapi-app-secret \
   --namespace fastapi-app \
   --from-literal=POSTGRES_PASSWORD="..." \
   --from-literal=REDIS_PASSWORD="..." \
-  --from-literal=JWT_SECRET_KEY="..." \
-  --from-literal=JWT_REFRESH_SECRET_KEY="..." \
-  --from-literal=DATABASE_URL="postgresql+asyncpg://postgres:...@postgres:5432/mydb" \
-  --from-literal=REDIS_URL="redis://:...@redis:6379/0"
+  --from-literal=JWT_SECRET_KEY="..."
 ```
 
-**Production:** use [Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets) or [External Secrets Operator](https://external-secrets.io/).
+**Production:** use [Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets)
+or [External Secrets Operator](https://external-secrets.io/) to store encrypted
+secrets in git and have the operator inject them at apply time.
 
-## 1 Worker Per Pod
+## Ingress & TLS
 
-FastAPI is async — the event loop handles concurrency on a single worker. Multiple workers would multiply memory and DB connections with no latency benefit. HPA adds pods when CPU exceeds 70%.
+`base/app/ingress.yaml` ships with nginx-ingress annotations by default.
+For Traefik, comment the nginx block and uncomment the Traefik annotations in
+that file.  Certificate issuance is handled by [cert-manager](https://cert-manager.io/)
+— install a `ClusterIssuer` named `letsencrypt-prod` before applying.
 
-`--graceful-timeout 45` is less than `terminationGracePeriodSeconds: 60` so in-flight requests finish before the pod is force-killed.
+Each overlay's `configmap.yaml` patch overrides `ALLOWED_HOSTS` and
+`CORS_ORIGINS` to match the environment's hostname.
 
-## Overriding Resources Per Environment
+## Architecture notes
 
-Use a Kustomize patch or Helm values to override without editing base manifests.
+**1 worker per pod** — FastAPI is async; the event loop handles concurrency on
+a single Gunicorn worker.  Multiple workers would multiply memory and DB
+connections with no latency benefit.  HPA adds pods when CPU exceeds 70 %.
 
-```yaml
-# Example: k8s/overlays/prod/deployment-patch.yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: fastapi-app
-  namespace: fastapi-app
-spec:
-  template:
-    spec:
-      containers:
-        - name: fastapi-app
-          resources:
-            requests:
-              cpu: "250m"
-              memory: "512Mi"
-            limits:
-              cpu: "1000m"
-              memory: "1Gi"
-```
+**HPA scale-down stabilisation** — `behavior.scaleDown.stabilizationWindowSeconds:
+300` prevents flapping by waiting 5 minutes after the last scale event before
+removing pods.
 
-| Environment | minReplicas | maxReplicas | targetCPU |
-|-------------|-------------|-------------|-----------|
-| dev         | 1           | 3           | 80%       |
-| staging     | 2           | 5           | 70%       |
-| production  | 2           | 10          | 70%       |
+**Migration Job** — `backoffLimit: 3` retries on transient failures;
+`activeDeadlineSeconds: 300` surfaces stuck migrations instead of hanging
+forever.  For Helm, annotate the Job with `"helm.sh/hook": pre-upgrade,pre-install`.
+For Argo CD, set `argocd.argoproj.io/sync-wave: "-1"` so it runs before the
+Deployment sync wave.
+
+**PgBouncer (optional)** — with many pods each holding a SQLAlchemy connection
+pool, open connections to Postgres multiply quickly.  Add a PgBouncer
+Deployment as a sidecar or separate service to multiplex connections across
+pods.
+
+**Redis HA (optional)** — the template assumes a single Redis instance.  For
+production consider [Redis Sentinel](https://redis.io/docs/management/sentinel/)
+or a managed service (ElastiCache, Cloud Memorystore) with automatic failover.
+
+## Per-environment summary
+
+| Environment | replicas | HPA min/max | Resources (req/limit)        |
+|-------------|----------|-------------|------------------------------|
+| dev         | 1        | 1 / 3       | 50m–250m CPU · 128–256Mi RAM |
+| staging     | 2        | 2 / 5       | 100m–500m CPU · 256–512Mi RAM |
+| prod        | 3        | 3 / 10      | 200m–1000m CPU · 512Mi–1Gi RAM |

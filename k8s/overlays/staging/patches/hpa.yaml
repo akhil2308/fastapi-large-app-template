@@ -1,0 +1,9 @@
+# staging: mirrors prod topology at lower scale ceiling.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: fastapi-app
+  namespace: fastapi-app
+spec:
+  minReplicas: 2
+  maxReplicas: 5

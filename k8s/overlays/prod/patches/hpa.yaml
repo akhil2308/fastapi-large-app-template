@@ -1,0 +1,9 @@
+# prod: 3–10 replicas, matches the base ceiling but raised floor for HA.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: fastapi-app
+  namespace: fastapi-app
+spec:
+  minReplicas: 3
+  maxReplicas: 10

@@ -26,3 +26,17 @@ spec:
         target:
           type: Utilization
           averageUtilization: 70  # Scale out when avg CPU exceeds 70 %
+  behavior:
+    scaleDown:
+      # Wait 5 min after last scale event before scaling down to avoid flapping.
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 25        # Remove at most 25 % of replicas per minute
+          periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 0  # React to spikes immediately
+      policies:
+        - type: Percent
+          value: 100       # Double replica count per 30 s burst window
+          periodSeconds: 30

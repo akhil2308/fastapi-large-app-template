@@ -1,0 +1,9 @@
+# dev: scale between 1–3 replicas to keep cloud spend low.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: fastapi-app
+  namespace: fastapi-app
+spec:
+  minReplicas: 1
+  maxReplicas: 3
