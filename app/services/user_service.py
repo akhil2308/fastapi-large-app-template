@@ -20,6 +20,7 @@ from app.crud.user_crud import (
     get_user_by_username_or_email,
 )
 from app.models.user_model import User
+from app.observability.metrics import record_user_registered
 from app.schemas.user_schema import TokenPair, UserCreateRequest, UserCreateResponse
 
 _pwd = PasswordHash.recommended()
@@ -48,6 +49,7 @@ async def register_user(
         email=user_create.email,
         hashed_password=hashed,
     )
+    record_user_registered()
     return UserCreateResponse.model_validate(user)
 
 
