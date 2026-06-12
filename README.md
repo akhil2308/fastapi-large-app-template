@@ -1,5 +1,6 @@
 # FastAPI Large Application Template 🚀
 
+[![CI](https://github.com/akhil2308/fastapi-large-app-template/actions/workflows/ci.yml/badge.svg)](https://github.com/akhil2308/fastapi-large-app-template/actions/workflows/ci.yml)
 [![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
@@ -19,8 +20,9 @@ A production-ready FastAPI template designed for building secure, scalable APIs 
 - **Alembic for Database Migrations** 🗄️
 - **Modern Package Management with `uv`** ⚡
 - **One-command Local Stack** — `make up` (app + Postgres + Redis) 🐳
-- **Kubernetes Manifests** — probes, security context, NetworkPolicy, HPA ☸️
+- **Kubernetes Manifests** — kustomize base + dev/staging/prod overlays, probes, security context, NetworkPolicy, HPA ☸️
 - **OpenTelemetry Observability** — metrics, traces, Golden Signals dashboards (Prometheus + Grafana + Tempo) 📊
+- **CI Pipeline** — lint, type-check, migration-drift check, tests with coverage gate, Docker build (GitHub Actions, Python 3.11–3.13) ✅
 
 ## Observability 📊
 
@@ -61,6 +63,7 @@ This template includes a **production-grade OpenTelemetry observability setup** 
 | Orchestration          | Kubernetes (manifests in `k8s/`)    |
 | Observability          | OpenTelemetry                       |
 | Testing                | pytest, fakeredis, hypothesis       |
+| CI                     | GitHub Actions (`make ci` parity)   |
 
 ## Project Structure 🌳
 
@@ -82,10 +85,11 @@ app/
 ├── alembic/        # Migration environment & versions
 └── main.py         # App factory, middleware wiring, exception handlers, lifespan
 
-k8s/                # Kubernetes manifests (deployment, service, HPA, NetworkPolicy, jobs)
+k8s/                # Kustomize base + dev/staging/prod overlays (deployment, ingress, HPA, NetworkPolicy, migration job)
 docker/observability/  # Local Grafana/Tempo/Prometheus/OTel collector stack
 docs/               # Observability guide, dashboards, screenshots
 tests/              # unit / integration / e2e suites (pytest, fakeredis, hypothesis)
+.github/workflows/  # CI: lint, mypy, migrations check, tests + coverage, docker build
 docker-compose.yml  # One-command local stack (app + postgres + redis)
 Dockerfile          # Canonical multi-stage image (lockfile-pinned)
 ```
@@ -192,6 +196,7 @@ make test
 # Database migrations
 make migrate
 make migrate-create MSG="your migration message"
+make migrate-check   # fail if models drifted from migrations
 
 # Code quality
 make check-env
@@ -275,19 +280,24 @@ docker build -t fastapi-large-app-template .
 
 ## Kubernetes ☸️
 
-Manifests live in [k8s/](k8s/) — namespace, ConfigMap/Secret, Deployment,
-Service, HPA, PodDisruptionBudget, a default-deny NetworkPolicy, and a
-migration Job. The Deployment ships with startup/readiness/liveness probes, a
-hardened security context, and `automountServiceAccountToken: false`.
+Manifests live in [k8s/](k8s/) as a **kustomize base + overlays** — namespace,
+ConfigMap/Secret, Deployment, Service, Ingress, HPA, PodDisruptionBudget, a
+default-deny NetworkPolicy, and a migration Job, with `dev`/`staging`/`prod`
+overlays patching replicas, resources, and image tags per environment. The
+Deployment ships with startup/readiness/liveness probes, a hardened security
+context, and `automountServiceAccountToken: false`.
 
 ```bash
-# 1. Build and push your image, then set it in k8s/app/deployment.yaml
-#    and k8s/jobs/migration.yaml.
-# 2. Fill in k8s/app/secret.yaml (JWT_SECRET_KEY, DB/Redis passwords) and
-#    review k8s/app/configmap.yaml (ALLOWED_HOSTS, CORS_ORIGINS, OTEL endpoint).
-kubectl apply -f k8s/namespace.yaml
-kubectl apply -f k8s/app/
-kubectl apply -f k8s/jobs/migration.yaml
+# 1. Build and push your image, then pin its tag in the overlay:
+cd k8s/overlays/prod && kustomize edit set image \
+  your-registry/fastapi-large-app-template=<registry>/<image>:<tag> && cd -
+
+# 2. Fill in k8s/base/app/secret.yaml (JWT_SECRET_KEY, DB/Redis passwords) and
+#    review k8s/base/app/configmap.yaml (ALLOWED_HOSTS, CORS_ORIGINS, OTEL endpoint).
+
+# 3. Preview, then deploy (migration Job + all app resources):
+kubectl kustomize k8s/overlays/prod
+kubectl apply -k k8s/overlays/prod
 ```
 
 See [k8s/README.md](k8s/README.md) for the full walkthrough.
@@ -319,6 +329,11 @@ uv run mypy .
 ```
 
 > **Note:** 🔒 A **pre-commit hook** is configured. When you attempt to `git commit`, these checks will automatically run to ensure no bad code is pushed to the repository.
+
+The same checks run in CI ([.github/workflows/ci.yml](.github/workflows/ci.yml))
+on every push and PR: ruff, mypy, an Alembic drift check, the full test suite
+with a coverage gate (≥80%) across Python 3.11–3.13, and a Docker image build.
+Locally, `make ci` runs the identical pipeline.
 
 ---
 
