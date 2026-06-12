@@ -1,6 +1,7 @@
 from logging import getLogger
 
 from opentelemetry import metrics
+from opentelemetry.metrics import Counter, Histogram
 
 logger = getLogger(__name__)
 
@@ -8,16 +9,16 @@ logger = getLogger(__name__)
 class _Instruments:
     """Holds all OTel metric instruments; populated once by create_metrics()."""
 
-    db_query_hist = None
-    db_query_counter = None
-    redis_cmd_counter = None
-    redis_cmd_hist = None
-    ratelimit_allowed = None
-    ratelimit_rejected = None
-    ratelimit_degraded = None
-    instrumentation_failures = None
-    todos_created = None
-    users_registered = None
+    db_query_hist: Histogram | None = None
+    db_query_counter: Counter | None = None
+    redis_cmd_counter: Counter | None = None
+    redis_cmd_hist: Histogram | None = None
+    ratelimit_allowed: Counter | None = None
+    ratelimit_rejected: Counter | None = None
+    ratelimit_degraded: Counter | None = None
+    instrumentation_failures: Counter | None = None
+    todos_created: Counter | None = None
+    users_registered: Counter | None = None
 
 
 _m = _Instruments()
