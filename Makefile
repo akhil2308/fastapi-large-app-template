@@ -110,7 +110,7 @@ prod:
 # =============================================================================
 test: check-env
 	@echo "Running all tests..."
-	$(PYTEST) tests/
+	$(PYTEST) tests/ --cov=app --cov-report=term-missing
 
 test-unit: check-env
 	@echo "Running unit tests..."
@@ -159,7 +159,7 @@ typecheck: check-env
 	$(MYPY) .
 
 # Full CI pipeline
-ci: check-env lint format typecheck test
+ci: check-env lint format typecheck migrate-check test
 	@echo "CI pipeline completed successfully"
 
 # =============================================================================

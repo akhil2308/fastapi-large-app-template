@@ -10,14 +10,18 @@ Tests cover:
 
 import pytest
 
+from app.core.auth import create_refresh_token, is_token_blacklisted
+from app.core.exceptions import InvalidCredentialsError
 from app.schemas.user_schema import UserCreateRequest
 from app.services.user_service import (
     hash_password,
     login_user,
+    logout_user,
+    refresh_tokens,
     register_user,
     verify_password,
 )
-from tests.factories import UserFactory
+from tests.factories import TokenFactory, UserFactory
 
 
 @pytest.mark.unit
@@ -241,3 +245,57 @@ class TestEmailValidation:
             UserCreateRequest(
                 username="testuser", email="not-an-email", password="ValidPass123!"
             )
+
+
+@pytest.mark.unit
+class TestRefreshTokens:
+    """Tests for refresh_tokens rotation and revocation."""
+
+    async def test_refresh_issues_new_pair(self, test_db, fake_redis):
+        """A valid refresh token yields a fresh access/refresh pair."""
+        user = await UserFactory.create_async(db=test_db)
+        old_refresh = create_refresh_token({"sub": user.user_id})
+
+        tokens = await refresh_tokens(test_db, fake_redis, old_refresh)
+
+        assert tokens.access_token
+        assert tokens.refresh_token != old_refresh
+
+    async def test_refresh_blacklists_old_token(self, test_db, fake_redis):
+        """Rotation blacklists the old token so it cannot be reused."""
+        user = await UserFactory.create_async(db=test_db)
+        old_refresh = create_refresh_token({"sub": user.user_id})
+
+        await refresh_tokens(test_db, fake_redis, old_refresh)
+
+        with pytest.raises(InvalidCredentialsError):
+            await refresh_tokens(test_db, fake_redis, old_refresh)
+
+    async def test_refresh_invalid_token(self, test_db, fake_redis):
+        """An unparseable refresh token is rejected."""
+        with pytest.raises(InvalidCredentialsError):
+            await refresh_tokens(test_db, fake_redis, "not.a.token")
+
+    async def test_refresh_unknown_user(self, test_db, fake_redis):
+        """A refresh token for a non-existent user is rejected."""
+        ghost_refresh = create_refresh_token({"sub": "missing-user-id"})
+
+        with pytest.raises(InvalidCredentialsError):
+            await refresh_tokens(test_db, fake_redis, ghost_refresh)
+
+
+@pytest.mark.unit
+class TestLogoutUser:
+    """Tests for logout_user token blacklisting."""
+
+    async def test_logout_blacklists_access_token(self, test_db, fake_redis):
+        """Logout adds the access token's JTI to the blacklist."""
+        from app.core.auth import decode_access_token
+
+        _, token = await TokenFactory.create_for_user(test_db)
+
+        await logout_user(fake_redis, token)
+
+        payload = decode_access_token(token)
+        assert payload is not None
+        assert await is_token_blacklisted(fake_redis, payload["jti"]) is True

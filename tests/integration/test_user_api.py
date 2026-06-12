@@ -187,3 +187,62 @@ class TestAuthenticationFlow:
             "/api/v1/todo/", headers={"Authorization": f"Bearer {token}"}
         )
         assert todo_response.status_code == 200
+
+
+@pytest.mark.integration
+class TestTokenLifecycle:
+    """Tests for logout blacklisting and refresh-token rotation."""
+
+    async def _register_and_login(self, client: AsyncClient) -> dict[str, str]:
+        await client.post(
+            "/api/v1/user/register",
+            json={
+                "username": "lifecycle",
+                "email": "lifecycle@example.com",
+                "password": "SecurePass123!",
+            },
+        )
+        login = await client.post(
+            "/api/v1/user/login",
+            json={"username": "lifecycle", "password": "SecurePass123!"},
+        )
+        return login.json()["data"]
+
+    async def test_logout_blacklists_access_token(self, client: AsyncClient):
+        """Logout revokes the access token so reusing it returns 401."""
+        tokens = await self._register_and_login(client)
+        headers = {"Authorization": f"Bearer {tokens['access_token']}"}
+
+        # Token works before logout.
+        assert (await client.get("/api/v1/todo/", headers=headers)).status_code == 200
+
+        logout = await client.post("/api/v1/user/logout", headers=headers)
+        assert logout.status_code == 200
+
+        # Same token is now blacklisted.
+        response = await client.get("/api/v1/todo/", headers=headers)
+        assert response.status_code == 401
+
+    async def test_refresh_rotates_old_token(self, client: AsyncClient):
+        """Refreshing issues a new pair and blacklists the old refresh token."""
+        tokens = await self._register_and_login(client)
+        old_refresh = tokens["refresh_token"]
+
+        first = await client.post(
+            "/api/v1/user/refresh", json={"refresh_token": old_refresh}
+        )
+        assert first.status_code == 200
+        assert first.json()["data"]["refresh_token"] != old_refresh
+
+        # Reusing the rotated refresh token is rejected.
+        replay = await client.post(
+            "/api/v1/user/refresh", json={"refresh_token": old_refresh}
+        )
+        assert replay.status_code == 401
+
+    async def test_refresh_with_invalid_token(self, client: AsyncClient):
+        """An unparseable refresh token returns 401."""
+        response = await client.post(
+            "/api/v1/user/refresh", json={"refresh_token": "not.a.token"}
+        )
+        assert response.status_code == 401
