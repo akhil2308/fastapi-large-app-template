@@ -5,7 +5,7 @@ from httpx import AsyncClient
 
 from app.main import app
 
-sync_client = TestClient(app)
+sync_client = TestClient(app, base_url="http://localhost")
 
 
 def test_liveness():
