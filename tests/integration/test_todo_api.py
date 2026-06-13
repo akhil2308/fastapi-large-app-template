@@ -236,6 +236,119 @@ class TestDeleteTodo:
 
 
 @pytest.mark.integration
+class TestSoftDeleteSemantics:
+    """Regression tests for P0.5 — soft-deleted todos must be invisible."""
+
+    async def test_deleted_todo_not_in_list(self, client: AsyncClient, test_db):
+        """A soft-deleted todo must not appear in the list endpoint."""
+        user = await UserFactory.create_async(
+            db=test_db, username="sduser1", email="sd1@example.com"
+        )
+        todo = await TodoFactory.create_async(
+            db=test_db, user_id=user.user_id, todo_id="sd-todo-1", title="Will Delete"
+        )
+        token = create_access_token(data={"sub": user.user_id})
+
+        del_resp = await client.delete(
+            "/api/v1/todo/sd-todo-1", headers={"Authorization": f"Bearer {token}"}
+        )
+        assert del_resp.status_code == 200
+
+        list_resp = await client.get(
+            "/api/v1/todo/", headers={"Authorization": f"Bearer {token}"}
+        )
+        assert list_resp.status_code == 200
+        ids = [t["todo_id"] for t in list_resp.json()["data"]]
+        assert todo.todo_id not in ids
+
+    async def test_deleted_todo_returns_404_on_update(
+        self, client: AsyncClient, test_db
+    ):
+        """PUT on a soft-deleted todo must return 404."""
+        user = await UserFactory.create_async(
+            db=test_db, username="sduser2", email="sd2@example.com"
+        )
+        await TodoFactory.create_async(
+            db=test_db, user_id=user.user_id, todo_id="sd-todo-2", title="Will Delete"
+        )
+        token = create_access_token(data={"sub": user.user_id})
+
+        await client.delete(
+            "/api/v1/todo/sd-todo-2", headers={"Authorization": f"Bearer {token}"}
+        )
+
+        put_resp = await client.put(
+            "/api/v1/todo/sd-todo-2",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"title": "Resurrected"},
+        )
+        assert put_resp.status_code == 404
+
+    async def test_re_delete_returns_404(self, client: AsyncClient, test_db):
+        """DELETE on an already-deleted todo must return 404, not 200."""
+        user = await UserFactory.create_async(
+            db=test_db, username="sduser3", email="sd3@example.com"
+        )
+        await TodoFactory.create_async(
+            db=test_db, user_id=user.user_id, todo_id="sd-todo-3", title="Will Delete"
+        )
+        token = create_access_token(data={"sub": user.user_id})
+
+        first = await client.delete(
+            "/api/v1/todo/sd-todo-3", headers={"Authorization": f"Bearer {token}"}
+        )
+        assert first.status_code == 200
+
+        second = await client.delete(
+            "/api/v1/todo/sd-todo-3", headers={"Authorization": f"Bearer {token}"}
+        )
+        assert second.status_code == 404
+
+    async def test_deleted_todo_excluded_from_list(self, client: AsyncClient, test_db):
+        """Soft-deleted todos must not appear in the list endpoint."""
+        user = await UserFactory.create_async(
+            db=test_db, username="sduser4", email="sd4@example.com"
+        )
+        todo = await TodoFactory.create_async(
+            db=test_db, user_id=user.user_id, title="Listed Todo"
+        )
+        token = create_access_token(data={"sub": user.user_id})
+
+        await client.delete(
+            f"/api/v1/todo/{todo.todo_id}",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        list_resp = await client.get(
+            "/api/v1/todo/", headers={"Authorization": f"Bearer {token}"}
+        )
+        assert list_resp.status_code == 200
+        assert list_resp.json()["total_size"] == 0
+
+
+@pytest.mark.integration
+class TestRefreshTokenRejected:
+    """Regression test for P0.1 — refresh tokens must not work as access tokens."""
+
+    async def test_refresh_token_rejected_on_todo_endpoint(
+        self, client: AsyncClient, test_db
+    ):
+        """Using a refresh token as a Bearer token must return 401."""
+        from app.core.auth import create_refresh_token
+
+        user = await UserFactory.create_async(
+            db=test_db, username="rtuser_int", email="rtint@example.com"
+        )
+        refresh_token = create_refresh_token(data={"sub": user.user_id})
+
+        resp = await client.get(
+            "/api/v1/todo/",
+            headers={"Authorization": f"Bearer {refresh_token}"},
+        )
+        assert resp.status_code == 401
+
+
+@pytest.mark.integration
 class TestUserIsolation:
     """Tests for user data isolation."""
 

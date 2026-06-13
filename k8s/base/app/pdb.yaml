@@ -1,0 +1,19 @@
+# PodDisruptionBudget — fastapi-app
+# Guarantees that at least 1 pod remains available during voluntary disruptions
+# (e.g. node drains for maintenance, cluster upgrades).
+# Works in tandem with the HPA (hpa.yaml) which keeps minReplicas=2, so one
+# pod can be evicted while the other continues serving traffic.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: fastapi-app
+  namespace: fastapi-app
+  labels:
+    app: fastapi-app
+    component: app
+spec:
+  minAvailable: 1  # At least 1 pod must remain running during disruptions
+  selector:
+    matchLabels:
+      app: fastapi-app
+      component: app

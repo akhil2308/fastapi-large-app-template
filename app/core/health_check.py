@@ -2,7 +2,7 @@ from redis.asyncio import Redis
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.core.settings import AppConfig, DBConfig, RedisConfig
+from app.core.settings import settings
 
 
 class ServiceUnavailableError(Exception):
@@ -63,8 +63,8 @@ async def check_redis_health(redis: Redis) -> None:
     except Exception as e:
         await redis.close()
         raise RedisConnectionError(
-            host=RedisConfig.HOST,
-            port=RedisConfig.PORT,
+            host=settings.redis.host,
+            port=settings.redis.port,
             original_error=e,
         ) from e
 
@@ -86,9 +86,9 @@ async def check_database_health(
             await session.execute(text("SELECT 1"))
     except Exception as e:
         raise DatabaseConnectionError(
-            host=DBConfig.HOST,
-            port=DBConfig.PORT,
-            database=DBConfig.NAME,
+            host=settings.db.host,
+            port=settings.db.port,
+            database=settings.db.name,
             original_error=e,
         ) from e
 
@@ -99,7 +99,7 @@ def format_startup_error(
     """
     Format service unavailability error for startup failure message.
 
-    The level of detail shown depends on AppConfig.DEBUG:
+    The level of detail shown depends on settings.app.debug:
     - DEBUG=True: Full details with help text and traceback
     - DEBUG=False: Clean user-friendly message
 
@@ -111,7 +111,7 @@ def format_startup_error(
         Formatted error message suitable for logging/display
     """
     # Show detailed info only in debug mode or when explicitly requested
-    show_details = AppConfig.DEBUG or include_trace
+    show_details = settings.app.debug or include_trace
 
     if show_details:
         lines = [

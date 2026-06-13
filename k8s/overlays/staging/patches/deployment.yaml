@@ -1,0 +1,8 @@
+# staging: 2 replicas with production-like (but not prod-sized) resources.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fastapi-app
+  namespace: fastapi-app
+spec:
+  replicas: 2

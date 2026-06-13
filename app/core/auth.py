@@ -3,10 +3,10 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import jwt
-from fastapi_limiter import FastAPILimiter  # type: ignore[attr-defined]
 from jwt import PyJWTError
+from redis.asyncio import Redis
 
-from app.core.settings import JWTConfig
+from app.core.settings import settings
 
 
 def create_access_token(
@@ -17,11 +17,11 @@ def create_access_token(
         expire = datetime.now(UTC) + expires_delta
     else:
         expire = datetime.now(UTC) + timedelta(
-            minutes=JWTConfig.ACCESS_TOKEN_EXPIRE_MIN
+            minutes=settings.jwt.access_token_expire_minutes
         )
-    to_encode.update({"exp": expire, "jti": str(uuid.uuid4())})
+    to_encode.update({"exp": expire, "jti": str(uuid.uuid4()), "type": "access"})
     encoded_jwt: str = jwt.encode(
-        to_encode, JWTConfig.SECRET_KEY, algorithm=JWTConfig.ALGORITHM
+        to_encode, settings.jwt.secret_key, algorithm=settings.jwt.algorithm
     )
     return encoded_jwt
 
@@ -31,18 +31,20 @@ def create_refresh_token(data: dict[str, Any]) -> str:
     to_encode.update(
         {
             "exp": datetime.now(UTC)
-            + timedelta(days=JWTConfig.REFRESH_TOKEN_EXPIRE_DAYS),
+            + timedelta(days=settings.jwt.refresh_token_expire_days),
             "jti": str(uuid.uuid4()),
             "type": "refresh",
         }
     )
-    return jwt.encode(to_encode, JWTConfig.SECRET_KEY, algorithm=JWTConfig.ALGORITHM)
+    return jwt.encode(
+        to_encode, settings.jwt.secret_key, algorithm=settings.jwt.algorithm
+    )
 
 
 def decode_access_token(token: str) -> dict[str, Any] | None:
     try:
         payload: dict[str, Any] = jwt.decode(
-            token, JWTConfig.SECRET_KEY, algorithms=[JWTConfig.ALGORITHM]
+            token, settings.jwt.secret_key, algorithms=[settings.jwt.algorithm]
         )
         return payload
     except PyJWTError:
@@ -56,13 +58,13 @@ def decode_refresh_token(token: str) -> dict[str, Any] | None:
     return None
 
 
-async def blacklist_token(jti: str, ttl_seconds: int) -> None:
-    if FastAPILimiter.redis is None:
+async def blacklist_token(redis: Redis, jti: str, ttl_seconds: int) -> None:
+    if redis is None:
         return
-    await FastAPILimiter.redis.setex(f"blacklist:{jti}", ttl_seconds, "1")
+    await redis.setex(f"blacklist:{jti}", ttl_seconds, "1")
 
 
-async def is_token_blacklisted(jti: str) -> bool:
-    if FastAPILimiter.redis is None:
+async def is_token_blacklisted(redis: Redis, jti: str) -> bool:
+    if redis is None:
         return False
-    return await FastAPILimiter.redis.exists(f"blacklist:{jti}") > 0
+    return await redis.exists(f"blacklist:{jti}") > 0

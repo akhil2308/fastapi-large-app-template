@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fastapi-app-config
+  namespace: fastapi-app
+data:
+  ENV: "stage"
+  LOG_LEVEL: "INFO"
+  ALLOWED_HOSTS: "staging.yourdomain.com"
+  CORS_ORIGINS: "https://staging.yourdomain.com"

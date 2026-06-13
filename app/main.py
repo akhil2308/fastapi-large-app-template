@@ -10,11 +10,13 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from fastapi_limiter import FastAPILimiter  # type: ignore[attr-defined]
 from redis.asyncio import Redis
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.api.health_router import router as health_router
 from app.api.todo_router import router as todo_router
 from app.api.user_router import router as user_router
 from app.core.database import AsyncSessionLocal, engine
+from app.core.exceptions import AppError
 from app.core.health_check import (
     DatabaseConnectionError,
     RedisConnectionError,
@@ -24,7 +26,7 @@ from app.core.health_check import (
 )
 from app.core.logging_config import log_config
 from app.core.middleware import CorrelationIDMiddleware, SecurityHeadersMiddleware
-from app.core.settings import CoreConfig, RedisConfig
+from app.core.settings import settings
 from app.observability.telemetry import init_telemetry
 
 logger = getLogger(__name__)
@@ -37,17 +39,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # startup
     # Create Redis connection pool
     redis = Redis(
-        host=RedisConfig.HOST,
-        port=RedisConfig.PORT,
-        db=RedisConfig.DB,
-        password=RedisConfig.PASSWORD,
+        host=settings.redis.host,
+        port=settings.redis.port,
+        db=settings.redis.db,
+        password=settings.redis.password,
         encoding="utf-8",
         decode_responses=True,
-        socket_connect_timeout=RedisConfig.CONNECTION_TIMEOUT,
+        socket_connect_timeout=settings.redis.connection_timeout,
         socket_keepalive=True,  # Enable TCP keepalive
         retry_on_timeout=True,  # Retry on timeout errors
-        max_connections=RedisConfig.MAX_CONNECTIONS,
-        health_check_interval=RedisConfig.HEALTH_CHECK_INTERVAL,
+        max_connections=settings.redis.max_connections,
+        health_check_interval=settings.redis.health_check_interval,
     )
 
     # Verify all required services are available - fail fast with clear error messages
@@ -79,6 +81,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         # shutdown
         await app.state.redis.close()
         await FastAPILimiter.close()
+        await engine.dispose()
 
 
 app = FastAPI(
@@ -91,16 +94,19 @@ app = FastAPI(
 )
 
 
+# Proxy / Load Balancer Level (Rewrites request.client.host from X-Forwarded-For)
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+
 # Network/Server Level	(For Allowing Server to Server Communication)
-app.add_middleware(TrustedHostMiddleware, allowed_hosts=CoreConfig.ALLOWED_HOSTS)
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.core.allowed_hosts)
 
 # Protection from Browser/Application Level (For Allowing Browser to Server Communication)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CoreConfig.CORS_ORIGINS,
+    allow_origins=settings.core.cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],  # ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
-    allow_headers=["*"],  # ["Content-Type", "Authorization"]
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-Correlation-ID"],
 )
 
 app.add_middleware(SecurityHeadersMiddleware)
@@ -146,5 +152,26 @@ async def http_exception_handler(request: Request, exc: HTTPException):
             "status": "error",
             "message": exc.detail,
             "errors": getattr(exc, "errors", None),
+        },
+    )
+
+
+@app.exception_handler(AppError)
+async def app_error_handler(request: Request, exc: AppError):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"status": "error", "message": exc.message, "errors": None},
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    logger.error("Unhandled error processing %s", request.url.path, exc_info=exc)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "status": "error",
+            "message": "Internal Server Error",
+            "errors": None,
         },
     )

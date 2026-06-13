@@ -13,7 +13,9 @@ from collections.abc import AsyncGenerator
 from datetime import timedelta
 from unittest.mock import AsyncMock, patch
 
+import fakeredis.aioredis
 import pytest
+from fastapi_limiter import FastAPILimiter  # type: ignore[attr-defined]
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
@@ -103,18 +105,20 @@ async def client(test_db: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
     main_app.dependency_overrides[get_db] = override_get_db
 
-    # Mock Redis for rate limiting
-    mock_redis = AsyncMock()
-    mock_redis.ping = AsyncMock()
-    mock_redis.evalsha = AsyncMock(return_value=0)
-    main_app.state.redis = mock_redis
+    # Real in-memory Redis so rate limiting and the token blacklist actually run.
+    # Fresh per test, so blacklist and rate-limit counters stay isolated.
+    fake_redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
+    main_app.state.redis = fake_redis
+    await FastAPILimiter.init(fake_redis)
 
     async with AsyncClient(
         transport=ASGITransport(app=main_app),  # type: ignore[arg-type]
-        base_url="http://test",
+        base_url="http://localhost",
     ) as ac:
         yield ac
 
+    await FastAPILimiter.close()
+    await fake_redis.aclose()
     main_app.dependency_overrides.clear()
 
 
@@ -236,11 +240,21 @@ async def two_authenticated_users(
 # Mock Fixtures
 # =============================================================================
 @pytest.fixture
+async def fake_redis() -> AsyncGenerator[fakeredis.aioredis.FakeRedis, None]:
+    """In-memory Redis for unit tests that exercise the token blacklist directly."""
+    redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
+    yield redis
+    await redis.aclose()
+
+
+@pytest.fixture
 def mock_redis() -> AsyncMock:
     """Provides a mock Redis client."""
     mock = AsyncMock()
     mock.ping = AsyncMock()
     mock.evalsha = AsyncMock(return_value=0)
+    mock.exists = AsyncMock(return_value=0)
+    mock.setex = AsyncMock(return_value=True)
     mock.get = AsyncMock(return_value=None)
     mock.set = AsyncMock(return_value=True)
     mock.delete = AsyncMock(return_value=1)

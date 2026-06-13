@@ -25,18 +25,6 @@ async def create_todo(
     return new_todo
 
 
-async def get_todos_by_offset(
-    db: AsyncSession, user_id: str, offset: int = 0, limit: int = 100
-) -> Sequence[Todo]:
-    result = await db.execute(
-        select(Todo)
-        .where(Todo.user_id == user_id, Todo.is_deleted.is_(False))
-        .offset(offset)
-        .limit(limit)
-    )
-    return result.scalars().all()
-
-
 async def get_todos_by_page_number(
     db: AsyncSession, user_id: str, page_number: int = 1, page_size: int = 100
 ) -> Sequence[Todo]:
@@ -44,6 +32,7 @@ async def get_todos_by_page_number(
     result = await db.execute(
         select(Todo)
         .where(Todo.user_id == user_id, Todo.is_deleted.is_(False))
+        .order_by(Todo.created_at.desc(), Todo.id.desc())
         .offset(offset)
         .limit(page_size)
     )
@@ -63,7 +52,11 @@ async def get_todos_by_todo_id(
     db: AsyncSession, todo_id: str, user_id: str
 ) -> Todo | None:
     result = await db.execute(
-        select(Todo).where(Todo.todo_id == todo_id, Todo.user_id == user_id)
+        select(Todo).where(
+            Todo.todo_id == todo_id,
+            Todo.user_id == user_id,
+            Todo.is_deleted.is_(False),
+        )
     )
     return result.scalars().first()
 
@@ -89,7 +82,9 @@ async def update_todo_by_todo_id(
 
     result = await db.execute(
         update(Todo)
-        .where(Todo.todo_id == todo_id, Todo.user_id == user_id)
+        .where(
+            Todo.todo_id == todo_id, Todo.user_id == user_id, Todo.is_deleted.is_(False)
+        )
         .values(**update_data)
         .returning(Todo)
     )
@@ -100,7 +95,9 @@ async def update_todo_by_todo_id(
 async def delete_todo_by_todo_id(db: AsyncSession, todo_id: str, user_id: str) -> bool:
     result = await db.execute(
         update(Todo)
-        .where(Todo.todo_id == todo_id, Todo.user_id == user_id)
+        .where(
+            Todo.todo_id == todo_id, Todo.user_id == user_id, Todo.is_deleted.is_(False)
+        )
         .values(is_deleted=True, deleted_at=datetime.now(UTC))
     )
     await db.commit()

@@ -1,0 +1,42 @@
+# HorizontalPodAutoscaler — fastapi-app
+# Automatically scales the Deployment replica count between minReplicas and
+# maxReplicas based on average CPU utilisation across all pods.
+# The HPA targets 70 % CPU to leave headroom for traffic spikes before a new
+# pod becomes ready.  minReplicas=2 matches the PodDisruptionBudget (pdb.yaml)
+# so at least one pod always remains available during voluntary disruptions.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: fastapi-app
+  namespace: fastapi-app
+  labels:
+    app: fastapi-app
+    component: app
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: fastapi-app
+  minReplicas: 2   # Keep at least 2 pods for redundancy (aligns with PDB)
+  maxReplicas: 10  # Upper bound — adjust based on cluster capacity and cost
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70  # Scale out when avg CPU exceeds 70 %
+  behavior:
+    scaleDown:
+      # Wait 5 min after last scale event before scaling down to avoid flapping.
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 25        # Remove at most 25 % of replicas per minute
+          periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 0  # React to spikes immediately
+      policies:
+        - type: Percent
+          value: 100       # Double replica count per 30 s burst window
+          periodSeconds: 30

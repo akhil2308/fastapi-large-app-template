@@ -1,0 +1,60 @@
+# NetworkPolicy — fastapi-app
+# Default-deny all ingress and egress for the fastapi-app pods, then
+# whitelist only the traffic paths the app legitimately needs:
+#   Ingress : traffic from the ingress controller on port 8000
+#   Egress  : Postgres (5432), Redis (6379), OTel collector (4317/4318), DNS (53)
+#
+# Adjust namespace selectors to match your ingress controller's namespace.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: fastapi-app
+  namespace: fastapi-app
+  labels:
+    app: fastapi-app
+    component: app
+spec:
+  podSelector:
+    matchLabels:
+      app: fastapi-app
+      component: app
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # Allow HTTP traffic from the ingress controller only.
+    # Replace the namespace label value if your ingress controller lives in a
+    # different namespace (e.g. ingress-nginx, traefik).
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8000
+
+  egress:
+    # PostgreSQL
+    - ports:
+        - protocol: TCP
+          port: 5432
+
+    # Redis
+    - ports:
+        - protocol: TCP
+          port: 6379
+
+    # OpenTelemetry collector (gRPC / HTTP)
+    - ports:
+        - protocol: TCP
+          port: 4317
+        - protocol: TCP
+          port: 4318
+
+    # DNS resolution (required for hostname lookups)
+    - ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53

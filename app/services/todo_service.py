@@ -9,6 +9,7 @@ from app.crud.todo_crud import (
     get_todos_total_size,
     update_todo_by_todo_id,
 )
+from app.observability.metrics import record_todo_created
 from app.schemas.todo_schema import Todo, TodoCreate, TodoUpdate
 
 
@@ -16,6 +17,7 @@ async def create_todo_service(
     user_id: str, todo_data: TodoCreate, db: AsyncSession
 ) -> Todo:
     new_todo = await create_todo(db, user_id, todo_data.title, todo_data.description)
+    record_todo_created(user_id)
     return Todo.model_validate(new_todo)
 
 

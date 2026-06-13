@@ -1,0 +1,55 @@
+# ConfigMap — fastapi-app-config
+# Holds non-sensitive environment variables injected into the app container
+# via envFrom.  Sensitive values (passwords, keys) live in the Secret instead.
+# Update OTEL_EXPORTER_OTLP_ENDPOINT and CORS_ORIGINS before deploying to a
+# real environment.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fastapi-app-config
+  namespace: fastapi-app
+  labels:
+    app: fastapi-app
+    component: app
+data:
+  # ── General ──────────────────────────────────────────────────────────────
+  ENV: "prod"
+  LOG_LEVEL: "INFO"
+
+  # ── OpenTelemetry (tracing / metrics export) ──────────────────────────────
+  # Set OTEL_EXPORTER_OTLP_ENDPOINT to the collector URL (e.g. http://otel-collector:4317).
+  OTEL_SERVICE_NAME: "fastapi-app"
+  OTEL_EXPORTER_OTLP_ENDPOINT: ""
+  # Exclude health probes from traces to reduce noise in Tempo/Jaeger.
+  OTEL_PYTHON_FASTAPI_EXCLUDED_URLS: "/api/v1/health.*"
+  # parentbased_traceidratio honours upstream sampling decisions.
+  # Lower OTEL_TRACES_SAMPLER_ARG in prod to reduce trace volume (e.g. "0.1").
+  OTEL_TRACES_SAMPLER: "parentbased_traceidratio"
+  OTEL_TRACES_SAMPLER_ARG: "1.0"
+
+  # ── PostgreSQL connection ─────────────────────────────────────────────────
+  # Credentials are in the Secret; only the non-sensitive knobs live here.
+  POSTGRES_HOST: "postgres"
+  POSTGRES_PORT: "5432"
+  POSTGRES_USER: "postgres"
+  POSTGRES_NAME: "mydb"
+  POSTGRES_POOL_SIZE: "5"       # SQLAlchemy pool_size
+  POSTGRES_MAX_OVERFLOW: "10"   # Extra connections allowed above pool_size
+
+  # ── Redis connection ──────────────────────────────────────────────────────
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  REDIS_DB: "0"
+  REDIS_MAX_CONNECTIONS: "10"
+  REDIS_CONNECTION_TIMEOUT: "5"       # seconds
+  REDIS_HEALTH_CHECK_INTERVAL: "30"   # seconds between background pings
+
+  # ── Rate limiting ─────────────────────────────────────────────────────────
+  READ_RATE_LIMITING_PER_MIN: "60"
+  WRITE_RATE_LIMITING_PER_MIN: "10"
+
+  # ── Security / CORS ───────────────────────────────────────────────────────
+  # REQUIRED: replace with the actual domain(s) before deploying.
+  # Wildcard '*' is rejected at startup in prod when credentials are enabled.
+  ALLOWED_HOSTS: "yourdomain.com"
+  CORS_ORIGINS: "https://yourdomain.com"

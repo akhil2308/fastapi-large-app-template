@@ -25,7 +25,11 @@ SHELL := bash
 # =============================================================================
 # PHONY Targets
 # =============================================================================
-.PHONY: help install dev prod test test-unit test-integration test-e2e lint format typecheck migrate migrate-create migrate-check clean check-env ci
+.PHONY: help install dev prod test test-unit test-integration test-e2e lint format typecheck migrate migrate-create migrate-check clean check-env ci up down logs up-observability down-observability
+
+# docker compose wrappers
+COMPOSE ?= docker compose
+COMPOSE_OBS = $(COMPOSE) -f docker/observability/docker-compose.yml
 
 # =============================================================================
 # Default target
@@ -56,6 +60,13 @@ help:
 	@echo "  format          Check code formatting"
 	@echo "  typecheck       Run type checking"
 	@echo "  ci              Run full CI pipeline (lint, format, typecheck, test)"
+	@echo ""
+	@echo "Local Docker stack:"
+	@echo "  up              Build and start app + postgres + redis (detached)"
+	@echo "  down            Stop and remove the local stack"
+	@echo "  logs            Follow the app container logs"
+	@echo "  up-observability   Start the Grafana/Tempo/Prometheus/OTel stack"
+	@echo "  down-observability Stop the observability stack"
 	@echo ""
 	@echo "Utilities:"
 	@echo "  clean           Remove generated files and caches"
@@ -99,7 +110,7 @@ prod:
 # =============================================================================
 test: check-env
 	@echo "Running all tests..."
-	$(PYTEST) tests/
+	$(PYTEST) tests/ --cov=app --cov-report=term-missing
 
 test-unit: check-env
 	@echo "Running unit tests..."
@@ -148,8 +159,31 @@ typecheck: check-env
 	$(MYPY) .
 
 # Full CI pipeline
-ci: check-env lint format typecheck test
+ci: check-env lint format typecheck migrate-check test
 	@echo "CI pipeline completed successfully"
+
+# =============================================================================
+# Local Docker stack
+# =============================================================================
+up:
+	@echo "Building and starting app + postgres + redis..."
+	$(COMPOSE) up --build -d
+	@echo "App available at http://localhost:8000/docs"
+
+down:
+	@echo "Stopping local stack..."
+	$(COMPOSE) down
+
+logs:
+	$(COMPOSE) logs -f app
+
+up-observability:
+	@echo "Starting observability stack (Grafana/Tempo/Prometheus/OTel)..."
+	$(COMPOSE_OBS) up -d
+
+down-observability:
+	@echo "Stopping observability stack..."
+	$(COMPOSE_OBS) down
 
 # =============================================================================
 # Cleanup

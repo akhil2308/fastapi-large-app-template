@@ -1,9 +1,13 @@
 import logging
+from collections.abc import Awaitable, Callable
 from math import ceil
+from typing import Literal
 
-from fastapi import HTTPException, Request, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi_limiter import FastAPILimiter  # type: ignore[attr-defined]
 
+from app.api.deps import get_current_user
+from app.models.user_model import User
 from app.observability.metrics import (
     record_ratelimit_decision,
     record_ratelimit_degraded,
@@ -39,16 +43,29 @@ async def _execute_rate_limit(key: str, times: int, seconds: int, service: str) 
         record_ratelimit_decision(allowed=True, service=service)
 
 
-async def user_rate_limiter(
-    user_id: str, service: str, times: int = 5, seconds: int = 60
-) -> None:
-    key = f"{FastAPILimiter.prefix}:user:{user_id}:{service}"
-    await _execute_rate_limit(key, times, seconds, service)
+def RateLimit(
+    service: str,
+    scope: Literal["user", "ip"] = "user",
+    per_min: int = 5,
+) -> Callable[..., Awaitable[None]]:
+    """Build a rate-limit dependency keyed by the authenticated user or the client IP.
 
+    Declare it on a route via ``dependencies=[Depends(RateLimit(...))]`` so the
+    limit is visible in the route definition (and its 429 in the OpenAPI docs).
+    """
+    if scope == "user":
 
-async def ip_rate_limiter(
-    request: Request, service: str, times: int = 5, seconds: int = 60
-) -> None:
-    client_ip = request.client.host if request.client else "unknown"
-    key = f"{FastAPILimiter.prefix}:ip:{client_ip}:{service}"
-    await _execute_rate_limit(key, times, seconds, service)
+        async def user_dependency(
+            current_user: User = Depends(get_current_user),
+        ) -> None:
+            key = f"{FastAPILimiter.prefix}:user:{current_user.user_id}:{service}"
+            await _execute_rate_limit(key, per_min, 60, service)
+
+        return user_dependency
+
+    async def ip_dependency(request: Request) -> None:
+        client_ip = request.client.host if request.client else "unknown"
+        key = f"{FastAPILimiter.prefix}:ip:{client_ip}:{service}"
+        await _execute_rate_limit(key, per_min, 60, service)
+
+    return ip_dependency

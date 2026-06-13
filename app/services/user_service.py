@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 
-from passlib.context import CryptContext
+from pwdlib import PasswordHash
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import (
@@ -19,19 +20,20 @@ from app.crud.user_crud import (
     get_user_by_username_or_email,
 )
 from app.models.user_model import User
+from app.observability.metrics import record_user_registered
 from app.schemas.user_schema import TokenPair, UserCreateRequest, UserCreateResponse
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+_pwd = PasswordHash.recommended()
+# Used on the login miss-path so response time is constant regardless of username existence.
+_DUMMY_HASH: str = _pwd.hash("__dummy__")
 
 
 def hash_password(password: str) -> str:
-    hashed: str = pwd_context.hash(password)
-    return hashed
+    return _pwd.hash(password)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    result: bool = pwd_context.verify(plain_password, hashed_password)
-    return result
+    return _pwd.verify(plain_password, hashed_password)
 
 
 async def register_user(
@@ -47,31 +49,42 @@ async def register_user(
         email=user_create.email,
         hashed_password=hashed,
     )
+    record_user_registered()
     return UserCreateResponse.model_validate(user)
 
 
 async def login_user(db: AsyncSession, username: str, password: str) -> User:
     user = await get_user_by_username(db, username)
-    if not user or not verify_password(password, user.hashed_password):
+    if not user:
+        verify_password(
+            password, _DUMMY_HASH
+        )  # constant-time: prevent username enumeration
+        raise InvalidCredentialsError("Invalid credentials")
+    if not verify_password(password, user.hashed_password):
         raise InvalidCredentialsError("Invalid credentials")
     return user
 
 
-async def logout_user(token: str) -> None:
+async def logout_user(redis: Redis, token: str) -> None:
     payload = decode_access_token(token)
     if payload and (jti := payload.get("jti")):
         ttl = int(payload["exp"] - datetime.now(UTC).timestamp())
         if ttl > 0:
-            await blacklist_token(jti, ttl)
+            await blacklist_token(redis, jti, ttl)
 
 
-async def refresh_tokens(db: AsyncSession, refresh_token: str) -> TokenPair:
+async def refresh_tokens(
+    db: AsyncSession, redis: Redis, refresh_token: str
+) -> TokenPair:
+    # Trade-offs: JTI blacklisting does not cover family reuse (stolen token
+    # rotated first); is_token_blacklisted fails open when Redis is down
+    # (deliberate: availability > strict revocation — see app/core/auth.py).
     payload = decode_refresh_token(refresh_token)
     if not payload:
         raise InvalidCredentialsError("Invalid or expired refresh token")
 
     jti = payload.get("jti")
-    if jti and await is_token_blacklisted(jti):
+    if jti and await is_token_blacklisted(redis, jti):
         raise InvalidCredentialsError("Refresh token has been revoked")
 
     user = await get_user_by_user_id(db, payload["sub"])
@@ -81,7 +94,7 @@ async def refresh_tokens(db: AsyncSession, refresh_token: str) -> TokenPair:
     if jti:
         ttl = int(payload["exp"] - datetime.now(UTC).timestamp())
         if ttl > 0:
-            await blacklist_token(jti, ttl)
+            await blacklist_token(redis, jti, ttl)
 
     return TokenPair(
         access_token=create_access_token({"sub": user.user_id}),

@@ -10,13 +10,20 @@ Tests cover:
 
 from datetime import UTC, datetime, timedelta
 from typing import cast
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from app.api.deps import get_current_user
-from app.core.auth import create_access_token, decode_access_token
+from app.core.auth import create_access_token, create_refresh_token, decode_access_token
 from app.models.user_model import User
+
+
+def _redis_mock() -> AsyncMock:
+    """Redis stub whose blacklist lookup always misses."""
+    redis = AsyncMock()
+    redis.exists = AsyncMock(return_value=0)
+    return redis
 
 
 @pytest.mark.unit
@@ -122,11 +129,13 @@ class TestDecodeAccessToken:
         """Test decoding a token without subject."""
         import jwt
 
-        from app.core.settings import JWTConfig
+        from app.core.settings import settings
 
         # Create token without 'sub' claim
         token = jwt.encode(
-            {"some": "data"}, JWTConfig.SECRET_KEY, algorithm=JWTConfig.ALGORITHM
+            {"some": "data"},
+            settings.jwt.secret_key,
+            algorithm=settings.jwt.algorithm,
         )
 
         payload = decode_access_token(token)
@@ -153,7 +162,7 @@ class TestGetCurrentUser:
         token = create_access_token(data={"sub": user.user_id})
 
         # Get current user
-        result = await get_current_user(token=token, db=test_db)
+        result = await get_current_user(token=token, db=test_db, redis=_redis_mock())
 
         assert result is not None
         assert result.user_id == user.user_id
@@ -164,7 +173,9 @@ class TestGetCurrentUser:
         from fastapi import HTTPException
 
         with pytest.raises(HTTPException) as exc_info:
-            await get_current_user(token="invalid.token", db=test_db)
+            await get_current_user(
+                token="invalid.token", db=test_db, redis=_redis_mock()
+            )
 
         assert exc_info.value.status_code == 401
 
@@ -176,7 +187,7 @@ class TestGetCurrentUser:
         token = create_access_token(data={"sub": "non-existent-id"})
 
         with pytest.raises(HTTPException) as exc_info:
-            await get_current_user(token=token, db=test_db)
+            await get_current_user(token=token, db=test_db, redis=_redis_mock())
 
         assert exc_info.value.status_code == 401
 
@@ -195,6 +206,50 @@ class TestGetCurrentUser:
                 token=cast(str, None),  # Will cause OAuth2PasswordBearer to raise
                 db=test_db,
             )
+
+
+@pytest.mark.unit
+class TestTokenTypeClaim:
+    """Regression tests for P0.1 — refresh token must not be usable as access token."""
+
+    def test_access_token_has_type_access(self):
+        """Access tokens must carry type=access."""
+        token = create_access_token(data={"sub": "user-1"})
+        payload = decode_access_token(token)
+        assert payload is not None
+        assert payload.get("type") == "access"
+
+    def test_refresh_token_has_type_refresh(self):
+        """Refresh tokens must carry type=refresh."""
+        import jwt
+
+        from app.core.settings import settings
+
+        token = create_refresh_token(data={"sub": "user-1"})
+        payload = jwt.decode(
+            token, settings.jwt.secret_key, algorithms=[settings.jwt.algorithm]
+        )
+        assert payload.get("type") == "refresh"
+
+    async def test_refresh_token_rejected_on_protected_endpoint(self, test_db):
+        """A refresh token must return 401 when used as an access token (P0.1 regression)."""
+        from fastapi import HTTPException
+
+        user = User(
+            user_id="user-rt-test",
+            username="rtuser",
+            email="rt@example.com",
+            hashed_password="$2b$12$hash",
+        )
+        test_db.add(user)
+        await test_db.commit()
+
+        refresh_token = create_refresh_token(data={"sub": user.user_id})
+
+        with pytest.raises(HTTPException) as exc_info:
+            await get_current_user(token=refresh_token, db=test_db)
+
+        assert exc_info.value.status_code == 401
 
 
 @pytest.mark.unit

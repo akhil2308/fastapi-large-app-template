@@ -2,56 +2,73 @@
 Property-based tests using Hypothesis.
 
 Tests cover:
-- Password validation
+- Password length validation
+- Pagination math
 - Token generation
 - UUID generation
 """
 
+import math
+
 import pytest
 from hypothesis import assume, given, settings
 from hypothesis import strategies as st
+from pydantic import ValidationError
 
 from app.core.auth import create_access_token, decode_access_token
-from app.services.user_service import hash_password, verify_password
+from app.schemas.user_schema import UserCreateRequest
 
 
 @pytest.mark.unit
 class TestPasswordValidation:
-    """Property-based tests for password validation."""
+    """Property-based tests for the password length validator (8-128 chars)."""
 
-    @pytest.mark.skip(reason="bcrypt is too slow for property-based testing")
-    @given(password=st.text(min_size=8, max_size=100))
-    @settings(max_examples=5, deadline=None)
-    def test_password_hashing_consistency(self, password):
-        """Test that hashing the same password produces consistent results."""
-        hashed = hash_password(password)
-        # The hashed password should be different from the original
-        assert hashed != password
-        # And verify should work
-        assert verify_password(password, hashed) is True
+    @given(password=st.text(min_size=8, max_size=128))
+    @settings(max_examples=20, deadline=None)
+    def test_valid_length_accepted(self, password):
+        """Any password within the length bounds is accepted."""
+        request = UserCreateRequest(
+            username="user", email="user@example.com", password=password
+        )
+        assert request.password == password
 
-    @pytest.mark.skip(reason="bcrypt is too slow for property-based testing")
+    @given(password=st.text(max_size=7))
+    @settings(max_examples=20, deadline=None)
+    def test_too_short_rejected(self, password):
+        """Passwords shorter than 8 characters are rejected."""
+        with pytest.raises(ValidationError):
+            UserCreateRequest(
+                username="user", email="user@example.com", password=password
+            )
+
+    @given(password=st.text(min_size=129, max_size=200))
+    @settings(max_examples=20, deadline=None)
+    def test_too_long_rejected(self, password):
+        """Passwords longer than 128 characters are rejected."""
+        with pytest.raises(ValidationError):
+            UserCreateRequest(
+                username="user", email="user@example.com", password=password
+            )
+
+
+@pytest.mark.unit
+class TestPaginationMath:
+    """Property-based tests for total-pages computation."""
+
+    @staticmethod
+    def _total_pages(total_count: int, page_size: int) -> int:
+        # Mirrors app/services/todo_service.py
+        return (total_count + page_size - 1) // page_size if total_count else 0
+
     @given(
-        password=st.text(min_size=8, max_size=100),
-        other_password=st.text(min_size=8, max_size=100),
+        total_count=st.integers(min_value=0, max_value=10_000),
+        page_size=st.integers(min_value=1, max_value=100),
     )
-    @settings(max_examples=5, deadline=None)
-    def test_different_passwords_different_hashes(self, password, other_password):
-        """Test that different passwords produce different hashes."""
-        assume(password != other_password)
-        hashed1 = hash_password(password)
-        hashed2 = hash_password(other_password)
-        # Different passwords should have different hashes (highly probable)
-        assert hashed1 != hashed2
-
-    @pytest.mark.skip(reason="bcrypt is too slow for property-based testing")
-    @given(password=st.text(min_size=1, max_size=1000))
-    @settings(max_examples=5, deadline=None)
-    def test_verify_rejects_wrong_password(self, password):
-        """Test that verify_password rejects wrong passwords."""
-        hashed = hash_password(password)
-        wrong_password = password + "wrong"
-        assert verify_password(wrong_password, hashed) is False
+    @settings(max_examples=50, deadline=None)
+    def test_matches_ceiling_division(self, total_count, page_size):
+        """total_pages equals ceil(total_count / page_size), and 0 when empty."""
+        expected = math.ceil(total_count / page_size) if total_count else 0
+        assert self._total_pages(total_count, page_size) == expected
 
 
 @pytest.mark.unit

@@ -33,12 +33,15 @@ class Environment(StrEnum):
         """
         value_lower = value.lower().strip()
 
-        # Map common variations
+        # Map common variations (including long-form aliases used in k8s/CI)
         mapping = {
             "local": cls.LOCAL,
             "dev": cls.DEV,
+            "development": cls.DEV,
             "stage": cls.STAGE,
+            "staging": cls.STAGE,
             "prod": cls.PROD,
+            "production": cls.PROD,
         }
 
         if value_lower not in mapping:

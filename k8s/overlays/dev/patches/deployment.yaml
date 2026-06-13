@@ -1,0 +1,19 @@
+# dev: single replica, lighter resources — no need for HA in development.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fastapi-app
+  namespace: fastapi-app
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+        - name: fastapi-app
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"

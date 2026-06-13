@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fastapi-app-config
+  namespace: fastapi-app
+data:
+  ENV: "prod"
+  LOG_LEVEL: "INFO"
+  # REQUIRED: replace with actual production domain(s) before deploying.
+  ALLOWED_HOSTS: "yourdomain.com"
+  CORS_ORIGINS: "https://yourdomain.com"

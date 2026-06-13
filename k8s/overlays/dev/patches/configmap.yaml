@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fastapi-app-config
+  namespace: fastapi-app
+data:
+  ENV: "dev"
+  LOG_LEVEL: "DEBUG"
+  ALLOWED_HOSTS: "dev.yourdomain.com"
+  CORS_ORIGINS: "https://dev.yourdomain.com"

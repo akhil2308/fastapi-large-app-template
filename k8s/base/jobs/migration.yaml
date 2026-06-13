@@ -1,0 +1,60 @@
+# Job — fastapi-app-migration
+# Runs Alembic database migrations before (or alongside) a new Deployment.
+#
+# Usage:
+#   kubectl apply -k k8s/overlays/prod          # via kustomize (recommended)
+#   kubectl apply -f k8s/base/jobs/migration.yaml  # standalone (uses base image tag)
+#
+# Helm users: annotate with "helm.sh/hook: pre-upgrade,pre-install"
+# Argo CD users: set sync-wave: "-1" to run before the Deployment wave.
+# Replace `your-registry/fastapi-large-app-template:latest` with your image,
+# or let the kustomize overlay images: transformer do it automatically.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: fastapi-app-migration
+  namespace: fastapi-app
+  labels:
+    app: fastapi-app
+    component: migration
+spec:
+  # Retry the pod up to 3 times on failure before marking the Job failed.
+  backoffLimit: 3
+  # Fail the Job if it hasn't completed within 5 minutes (stuck migration guard).
+  activeDeadlineSeconds: 300
+  # Automatically delete the Job resource 2 minutes after it finishes.
+  ttlSecondsAfterFinished: 120
+  template:
+    metadata:
+      labels:
+        app: fastapi-app
+        component: migration
+    spec:
+      # Retry the container on failure; do not restart the entire pod.
+      restartPolicy: OnFailure
+      containers:
+        - name: migration
+          image: your-registry/fastapi-large-app-template:latest
+          imagePullPolicy: Always
+          # Run Alembic upgrade to the latest migration revision.
+          command:
+            - "alembic"
+            - "-c"
+            - "app/alembic.ini"
+            - "upgrade"
+            - "head"
+          # Migrations need DB credentials from the Secret and host config
+          # from the ConfigMap (same sources as the app container).
+          envFrom:
+            - configMapRef:
+                name: fastapi-app-config
+            - secretRef:
+                name: fastapi-app-secret
+          # Migration jobs are short-lived; lighter limits than the app pod.
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
