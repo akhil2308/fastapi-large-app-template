@@ -113,7 +113,7 @@ async def client(test_db: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
     async with AsyncClient(
         transport=ASGITransport(app=main_app),  # type: ignore[arg-type]
-        base_url="http://test",
+        base_url="http://localhost",
     ) as ac:
         yield ac
 
