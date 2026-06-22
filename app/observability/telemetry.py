@@ -75,10 +75,7 @@ def init_telemetry(app=None, sqlalchemy_engine=None):
         try:
             SQLAlchemyInstrumentor().instrument(engine=sqlalchemy_engine)
         except Exception as e:
-            logger.warning(
-                f"SQLAlchemy auto-instrumentation failed: {e}. "
-                "Use app.observability.db_metrics.db_timed for manual DB timing."
-            )
+            logger.warning(f"SQLAlchemy auto-instrumentation failed: {e}.")
             record_instrumentation_failure("sqlalchemy")
 
     # FastAPI instrumentation: instrument app instance if supplied

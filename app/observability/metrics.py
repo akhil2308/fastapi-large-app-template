@@ -1,7 +1,7 @@
 from logging import getLogger
 
 from opentelemetry import metrics
-from opentelemetry.metrics import Counter, Histogram
+from opentelemetry.metrics import Counter
 
 logger = getLogger(__name__)
 
@@ -9,10 +9,6 @@ logger = getLogger(__name__)
 class _Instruments:
     """Holds all OTel metric instruments; populated once by create_metrics()."""
 
-    db_query_hist: Histogram | None = None
-    db_query_counter: Counter | None = None
-    redis_cmd_counter: Counter | None = None
-    redis_cmd_hist: Histogram | None = None
     ratelimit_allowed: Counter | None = None
     ratelimit_rejected: Counter | None = None
     ratelimit_degraded: Counter | None = None
@@ -26,25 +22,11 @@ _m = _Instruments()
 
 def create_metrics():
     """Create all metric instruments — must be called after init_telemetry()."""
-    if _m.db_query_hist is not None:
+    if _m.ratelimit_allowed is not None:
         return
 
     meter = metrics.get_meter(__name__)
 
-    _m.db_query_hist = meter.create_histogram(
-        "app.db.query_duration_ms", description="DB query duration ms", unit="ms"
-    )
-    _m.db_query_counter = meter.create_counter(
-        "app.db.query_count", description="DB queries executed"
-    )
-    _m.redis_cmd_counter = meter.create_counter(
-        "app.redis.commands_total", description="Redis commands executed"
-    )
-    _m.redis_cmd_hist = meter.create_histogram(
-        "app.redis.command_duration_ms",
-        description="Redis command duration ms",
-        unit="ms",
-    )
     _m.ratelimit_allowed = meter.create_counter(
         "app.ratelimiter.allowed_total", description="Rate limiter allowed count"
     )
@@ -72,30 +54,6 @@ def _safe_add(counter, value, labels):
             counter.add(value, labels)
     except Exception:
         pass  # never let metrics crash requests
-
-
-def _safe_record(histogram, value, labels):
-    try:
-        if histogram is not None:
-            histogram.record(value, labels)
-    except Exception:
-        pass  # never let metrics crash requests
-
-
-def record_db_query(name: str, duration_ms: float, operation: str = "query"):
-    labels = {
-        "db.system": "postgresql",
-        "db.statement_name": name,
-        "db.operation": operation,
-    }
-    _safe_record(_m.db_query_hist, duration_ms, labels)
-    _safe_add(_m.db_query_counter, 1, labels)
-
-
-def record_redis_command(command: str, duration_ms: float):
-    labels = {"redis.command": command.upper()}
-    _safe_add(_m.redis_cmd_counter, 1, labels)
-    _safe_record(_m.redis_cmd_hist, duration_ms, labels)
 
 
 def record_ratelimit_decision(allowed: bool, service: str):
